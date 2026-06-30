@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ───────────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    }
+
+    function isRestaurantAdmin(restaurantId) {
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return isAuthenticated()
+        && user.role == 'restaurant_admin'
+        && user.restaurantId == restaurantId
+        && user.isActive == true;
+    }
+
+    function isOwnerOrSuperAdmin(restaurantId) {
+      return isSuperAdmin() || isRestaurantAdmin(restaurantId);
+    }
+
+    // ─── Users ─────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // Cada usuario solo puede leer su propio documento
+      // Super admin puede leer todos
+      allow read: if isAuthenticated()
+        && (request.auth.uid == userId || isSuperAdmin());
+
+      // Solo super admin puede crear/actualizar usuarios
+      // (la creación real va por API route — esto es fallback)
+      allow write: if isSuperAdmin();
+    }
+
+    // ─── Restaurants ───────────────────────────────────────────────────────────
+
+    match /restaurants/{restaurantId} {
+      // El menú público necesita leer el restaurante (sin auth)
+      allow read: if true;
+
+      // Solo super admin puede crear/actualizar/eliminar restaurantes
+      allow create, delete: if isSuperAdmin();
+      allow update: if isOwnerOrSuperAdmin(restaurantId);
+
+      // ─── Order Statuses ──────────────────────────────────────────────────────
+
+      match /orderStatuses/{statusId} {
+        allow read: if true;
+        allow write: if isOwnerOrSuperAdmin(restaurantId);
+      }
+
+      // ─── Categories ──────────────────────────────────────────────────────────
+
+      match /categories/{categoryId} {
+        // El menú público necesita leer categorías
+        allow read: if true;
+        allow write: if isOwnerOrSuperAdmin(restaurantId);
+      }
+
+      // ─── Products ────────────────────────────────────────────────────────────
+
+      match /products/{productId} {
+        // El menú público necesita leer productos
+        allow read: if true;
+        allow write: if isOwnerOrSuperAdmin(restaurantId);
+      }
+
+      // ─── Orders ──────────────────────────────────────────────────────────────
+
+      match /orders/{orderId} {
+        // Clientes pueden crear pedidos (checkout WhatsApp alternativo vía Firestore)
+        // El admin del restaurante puede leer y actualizar
+        allow create: if true;
+        allow read, update: if isOwnerOrSuperAdmin(restaurantId);
+        // Nadie elimina pedidos — solo se cambia el estado
+        allow delete: if isSuperAdmin();
+      }
+    }
+  }
+}

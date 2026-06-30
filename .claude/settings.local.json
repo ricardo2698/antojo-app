@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\" && npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --yes 2>&1)",
+      "Bash(npm list:*)"
+    ]
+  }
+}
