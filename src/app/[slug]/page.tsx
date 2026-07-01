@@ -6,6 +6,7 @@ import { adicionalesService } from '@/features/adicionales/services/adicionales.
 import { MenuPage } from '@/features/menu/components/MenuPage';
 import { productsService } from '@/features/products/services/products.service';
 import { restaurantsService } from '@/features/restaurants/services/restaurants.service';
+import { orderStatusesService } from '@/features/order-statuses/services/order-statuses.service';
 
 interface Props {
   params: { slug: string };
@@ -27,15 +28,17 @@ export default async function RestaurantMenuPage({ params }: Props) {
     notFound();
   }
 
-  const [categories, products, adicionales] = await Promise.all([
+  const [categories, products, adicionales, statuses] = await Promise.all([
     categoriesService.getAll(restaurant.id),
     productsService.getAll(restaurant.id),
     adicionalesService.getAll(restaurant.id),
+    orderStatusesService.getAll(restaurant.id),
   ]);
 
   const activeCategories = categories.filter((c) => c.isActive);
   const activeProducts = products.filter((p) => p.isActive);
   const activeAdicionales = adicionales.filter((a) => a.isActive);
+  const receivedStatusId = statuses.find((s) => s.code === 'received')?.id ?? '';
 
   return (
     <MenuPage
@@ -43,6 +46,7 @@ export default async function RestaurantMenuPage({ params }: Props) {
       categories={activeCategories}
       products={activeProducts}
       adicionales={activeAdicionales}
+      receivedStatusId={receivedStatusId}
     />
   );
 }

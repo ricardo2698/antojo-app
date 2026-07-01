@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, MapPin, MessageCircle } from 'lucide-react';
+import { ArrowRight, Clock, MapPin, MessageCircle } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ function formatShortDate(isoString: string): string {
     d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function OrderCard({ order, status, onOpen }: OrderCardProps) {
+export function OrderCard({ order, status, statuses, onOpen, onAdvance }: OrderCardProps) {
   const {
     orderNumber,
     customerName,
@@ -37,6 +37,12 @@ export function OrderCard({ order, status, onOpen }: OrderCardProps) {
   } = order;
 
   const whatsappUrl = `https://wa.me/${customerPhone.replace(/\D/g, '')}`;
+
+  const activeStatuses = statuses.filter((s) => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  const currentIndex = activeStatuses.findIndex((s) => s.id === order.statusId);
+  const nextStatus = currentIndex !== -1 && currentIndex < activeStatuses.length - 1
+    ? activeStatuses[currentIndex + 1]
+    : null;
 
   return (
     <div
@@ -117,13 +123,28 @@ export function OrderCard({ order, status, onOpen }: OrderCardProps) {
         )}
       </div>
 
+      {/* Avanzar estado */}
+      {nextStatus && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdvance(order.id, nextStatus.id);
+          }}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: nextStatus.color }}
+        >
+          <ArrowRight className="h-4 w-4" />
+          {nextStatus.name}
+        </button>
+      )}
+
       {/* WhatsApp */}
       <a
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
       >
         <MessageCircle className="h-4 w-4" />
         {customerPhone}

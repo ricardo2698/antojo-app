@@ -14,7 +14,8 @@
       "Bash(cd \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\" && npm install @radix-ui/react-tooltip)",
       "Read(//c/Users/LENOVO/Desktop/**)",
       "Read(//c/Users/LENOVO/Documents/**)",
-      "Bash(find \"C:\\\\Users\\\\LENOVO\\\\Documents\\\\projects\\\\antojo-express\\\\src\" -name \"*.tsx\" -o -name \"*.ts\" | xargs grep -l -i \"adicional\" 2>/dev/null)"
+      "Bash(find \"C:\\\\Users\\\\LENOVO\\\\Documents\\\\projects\\\\antojo-express\\\\src\" -name \"*.tsx\" -o -name \"*.ts\" | xargs grep -l -i \"adicional\" 2>/dev/null)",
+      "Bash(cd \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\" && npm install @dnd-kit/core)"
     ]
   }
 }

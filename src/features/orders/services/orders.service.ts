@@ -1,4 +1,4 @@
-import { collection, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, setDoc } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase/config';
 import type { CreateOrderData, Order } from '@/types';
@@ -15,13 +15,14 @@ function generateOrderNumber(): string {
 export const ordersService = {
   async create(data: CreateOrderData): Promise<string> {
     const now = new Date().toISOString();
-    const ref = await addDoc(ordersRef(data.restaurantId), {
+    const ref = doc(ordersRef(data.restaurantId));
+    await setDoc(ref, {
       ...data,
+      id: ref.id,
       orderNumber: generateOrderNumber(),
       createdAt: now,
       updatedAt: now,
     });
-    await updateDoc(ref, { id: ref.id });
     return ref.id;
   },
 

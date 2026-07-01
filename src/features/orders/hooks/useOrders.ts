@@ -4,7 +4,7 @@ import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import type { Order } from '@/types';
 
-export function useOrders(restaurantId: string) {
+export function useOrders(restaurantId: string, refreshKey = 0) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -14,6 +14,8 @@ export function useOrders(restaurantId: string) {
       setIsLoading(false);
       return;
     }
+
+    setIsLoading(true);
 
     const q = query(
       collection(db, 'restaurants', restaurantId, 'orders'),
@@ -33,7 +35,7 @@ export function useOrders(restaurantId: string) {
     );
 
     return () => unsubscribe();
-  }, [restaurantId]);
+  }, [restaurantId, refreshKey]);
 
   return { orders, isLoading, error };
 }

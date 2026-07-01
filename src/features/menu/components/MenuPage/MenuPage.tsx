@@ -33,12 +33,13 @@ interface MenuPageProps {
   categories: Category[];
   products: Product[];
   adicionales: Adicional[];
+  receivedStatusId: string;
 }
 
 const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
 const sm = "var(--font-space-mono, monospace)";
 
-export function MenuPage({ restaurant, categories, products, adicionales }: MenuPageProps) {
+export function MenuPage({ restaurant, categories, products, adicionales, receivedStatusId }: MenuPageProps) {
   const initCart = useCartStore((s) => s.initCart);
   const setCartOpen = useCartStore((s) => s.setCartOpen);
   const items = useCartStore((s) => s.items);
@@ -432,7 +433,7 @@ export function MenuPage({ restaurant, categories, products, adicionales }: Menu
 
       {/* Modales */}
       <ProductModal product={selectedProduct} adicionales={adicionales} primaryColor={pri} onClose={() => setSelectedProduct(null)} />
-      <CartDrawer primaryColor={pri} secondaryColor={sec} />
+      <CartDrawer primaryColor={pri} secondaryColor={sec} receivedStatusId={receivedStatusId} />
     </div>
   );
 }

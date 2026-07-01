@@ -7,15 +7,17 @@ import { formatCurrency } from '@/lib/utils';
 import { cartItemCount, cartTotal, useCartStore } from '@/store/cart.store';
 import { buildWhatsAppMessage, openWhatsApp } from '../../helpers/whatsapp.helpers';
 import type { DeliveryType, PaymentMethod } from '../../helpers/whatsapp.helpers';
+import { ordersService } from '@/features/orders/services/orders.service';
 
 const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
 
 interface CartDrawerProps {
   primaryColor: string;
   secondaryColor: string;
+  receivedStatusId: string;
 }
 
-export function CartDrawer({ primaryColor, secondaryColor }: CartDrawerProps) {
+export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
   const isCartOpen = useCartStore((s) => s.isCartOpen);
   const setCartOpen = useCartStore((s) => s.setCartOpen);
@@ -23,6 +25,7 @@ export function CartDrawer({ primaryColor, secondaryColor }: CartDrawerProps) {
   const updateObservacion = useCartStore((s) => s.updateObservacion);
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
+  const restaurantId = useCartStore((s) => s.restaurantId);
   const restaurantPhone = useCartStore((s) => s.restaurantPhone);
   const restaurantName = useCartStore((s) => s.restaurantName);
   const total = useCartStore(cartTotal);
@@ -47,9 +50,34 @@ export function CartDrawer({ primaryColor, secondaryColor }: CartDrawerProps) {
     paymentMethod !== '' &&
     (deliveryType === 'recoger' || (address.trim() !== '' && barrio.trim() !== ''));
 
-  function handleConfirm() {
+  async function handleConfirm() {
     setSubmitted(true);
-    if (!canOrder) return;
+    if (!canOrder || !restaurantId) return;
+
+    // Guardar pedido en Firestore
+    try {
+      await ordersService.create({
+        restaurantId,
+        customerName: name,
+        customerPhone: phone,
+        ...(deliveryType === 'domicilio' && address ? { customerAddress: `${address}${barrio ? `, ${barrio}` : ''}` } : {}),
+        paymentMethod,
+        items: items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal,
+          additionals: item.additionals,
+          specialInstructions: item.observacion?.trim() || item.specialInstructions?.trim() || '',
+        })),
+        subtotal: total,
+        total,
+        statusId: receivedStatusId,
+      });
+    } catch (err) {
+      console.error('[CartDrawer] Error al guardar pedido en Firestore:', err);
+    }
 
     const message = buildWhatsAppMessage(restaurantName, items, total, {
       customerName: name,
