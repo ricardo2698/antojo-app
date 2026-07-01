@@ -72,6 +72,13 @@ service cloud.firestore {
         allow write: if isOwnerOrSuperAdmin(restaurantId);
       }
 
+      // ─── Adicionales ─────────────────────────────────────────────────────────
+
+      match /adicionales/{adicionalId} {
+        allow read: if true;
+        allow write: if isOwnerOrSuperAdmin(restaurantId);
+      }
+
       // ─── Orders ──────────────────────────────────────────────────────────────
 
       match /orders/{orderId} {

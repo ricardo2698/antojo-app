@@ -14,6 +14,7 @@ export function ImageUpload({
   disabled,
   className,
   aspectRatio = 'wide',
+  objectFit = 'cover',
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +55,8 @@ export function ImageUpload({
       {label && <p className="text-sm font-medium text-gray-700">{label}</p>}
 
       {value ? (
-        <div className={cn('relative overflow-hidden rounded-lg border border-gray-200', heightClass)}>
-          <Image src={value} alt="Imagen subida" fill className="object-cover" />
+        <div className={cn('relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50', heightClass)}>
+          <Image src={value} alt="Imagen subida" fill className={cn(objectFit === 'contain' ? 'object-contain p-4' : 'object-cover')} />
           {!disabled && (
             <button
               type="button"

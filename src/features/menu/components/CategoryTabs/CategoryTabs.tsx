@@ -1,36 +1,44 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import type { Category } from '@/types';
 
 interface CategoryTabsProps {
   categories: Category[];
   activeId: string;
   primaryColor: string;
+  secondaryColor: string;
   onSelect: (id: string) => void;
 }
 
-export function CategoryTabs({ categories, activeId, primaryColor, onSelect }: CategoryTabsProps) {
+const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+
+export function CategoryTabs({ categories, activeId, primaryColor, secondaryColor, onSelect }: CategoryTabsProps) {
   return (
-    <div className="sticky top-0 z-10 overflow-x-auto border-b border-gray-200 bg-white">
-      <div className="flex min-w-max gap-1 px-4 py-2">
-        {categories.map((cat) => {
-          const isActive = activeId === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => onSelect(cat.id)}
-              className={cn(
-                'whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-                isActive ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
-              )}
-              style={isActive ? { backgroundColor: primaryColor } : undefined}
-            >
-              {cat.name}
-            </button>
-          );
-        })}
-      </div>
+    <div style={{ display: 'flex', gap: 9, overflowX: 'auto', padding: '20px 16px 6px', scrollbarWidth: 'none' }}>
+      {categories.map((cat) => {
+        const isActive = activeId === cat.id;
+        return (
+          <button
+            key={cat.id}
+            onClick={() => onSelect(cat.id)}
+            style={{
+              flexShrink: 0,
+              fontFamily: sg,
+              fontWeight: 600,
+              fontSize: 13,
+              borderRadius: 999,
+              padding: '9px 18px',
+              border: isActive ? 'none' : '1.5px solid #ece6df',
+              background: isActive ? primaryColor : '#fff',
+              color: isActive ? '#fff' : secondaryColor,
+              cursor: 'pointer',
+              transition: 'background .15s, color .15s',
+            }}
+          >
+            {cat.name}
+          </button>
+        );
+      })}
     </div>
   );
 }

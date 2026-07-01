@@ -2,21 +2,26 @@
 
 import { useState } from 'react';
 import { Plus, Search, Package } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { useAuth } from '@/features/auth';
 import { useCategories } from '@/features/categories/hooks/useCategories';
+import { QUERY_KEYS } from '@/constants/query-keys';
 import type { Category, Product } from '@/types';
 
 import { useProducts } from '../../hooks/useProducts';
 import { useToggleProductAvailable, useDeleteProduct } from '../../hooks/useProductMutations';
+import { productsService } from '../../services/products.service';
 import { ProductCard } from '../ProductCard';
-import { ProductForm } from '../ProductForm';
 
 export function ProductsManager() {
+  const router = useRouter();
   const { user } = useAuth();
   const restaurantId = user?.restaurantId ?? '';
+  const queryClient = useQueryClient();
 
   const { data: products = [], isLoading: loadingProducts } = useProducts(restaurantId);
   const { data: categories = [], isLoading: loadingCategories } = useCategories(restaurantId);
@@ -26,10 +31,9 @@ export function ProductsManager() {
 
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Product | undefined>(undefined);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   const categoryMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
 
@@ -42,18 +46,11 @@ export function ProductsManager() {
   });
 
   function handleEdit(product: Product) {
-    setEditing(product);
-    setModalOpen(true);
+    router.push(`/dashboard/productos/${product.id}`);
   }
 
   function handleAdd() {
-    setEditing(undefined);
-    setModalOpen(true);
-  }
-
-  function handleClose() {
-    setModalOpen(false);
-    setEditing(undefined);
+    router.push('/dashboard/productos/nuevo');
   }
 
   async function handleToggleAvailable(id: string, isAvailable: boolean) {
@@ -72,6 +69,24 @@ export function ProductsManager() {
       await deleteProduct.mutateAsync(id);
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleMove(index: number, direction: 'up' | 'down') {
+    const sorted = [...filtered];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+    const current = sorted[index];
+    const target = sorted[targetIndex];
+    setMovingId(current.id);
+    try {
+      await Promise.all([
+        productsService.update(restaurantId, current.id, { sortOrder: target.sortOrder }),
+        productsService.update(restaurantId, target.id, { sortOrder: current.sortOrder }),
+      ]);
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(restaurantId) });
+    } finally {
+      setMovingId(null);
     }
   }
 
@@ -117,18 +132,12 @@ export function ProductsManager() {
             className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           />
         </div>
-        <select
+        <Select
           value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-        >
-          <option value="">Todas las categorías</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+          onChange={setFilterCategory}
+          placeholder="Todas las categorías"
+          options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+        />
       </div>
 
       {/* Lista */}
@@ -151,38 +160,28 @@ export function ProductsManager() {
           )}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((product) => (
+        <div className="space-y-2">
+          {filtered.map((product, index) => (
             <ProductCard
               key={product.id}
               product={product}
               category={categoryMap.get(product.categoryId)}
+              index={index}
+              isFirst={index === 0}
+              isLast={index === filtered.length - 1}
               onEdit={handleEdit}
               onToggleAvailable={handleToggleAvailable}
               onDelete={handleDelete}
+              onMoveUp={(i) => handleMove(i, 'up')}
+              onMoveDown={(i) => handleMove(i, 'down')}
               isToggling={togglingId === product.id}
               isDeleting={deletingId === product.id}
+              isMoving={movingId === product.id}
             />
           ))}
         </div>
       )}
 
-      {/* Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={handleClose}
-        title={editing ? `Editar: ${editing.name}` : 'Nuevo producto'}
-        size="xl"
-      >
-        <ProductForm
-          product={editing}
-          restaurantId={restaurantId}
-          categories={categories}
-          defaultSortOrder={products.length + 1}
-          onSuccess={handleClose}
-          onCancel={handleClose}
-        />
-      </Modal>
     </div>
   );
 }

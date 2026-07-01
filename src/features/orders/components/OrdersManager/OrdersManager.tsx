@@ -1,37 +1,56 @@
 'use client';
 
 import { useState } from 'react';
-import { ShoppingBag, Wifi } from 'lucide-react';
+import { ShoppingBag, Wifi, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '@/features/auth';
 import { useOrderStatuses } from '@/features/order-statuses/hooks/useOrderStatuses';
-import { cn } from '@/lib/utils';
 import type { Order } from '@/types';
 
 import { useOrders } from '../../hooks/useOrders';
 import { OrderCard } from '../OrderCard';
 import { OrderDetailModal } from '../OrderDetailModal';
 
-const ALL_TAB = '__all__';
+type DateFilter = 'today' | 'month' | 'all';
+
+function isToday(isoString: string): boolean {
+  const d = new Date(isoString);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function isThisMonth(isoString: string): boolean {
+  const d = new Date(isoString);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
 
 export function OrdersManager() {
   const { user } = useAuth();
   const restaurantId = user?.restaurantId ?? '';
 
-  const { orders, isLoading, error } = useOrders(restaurantId);
+  const { orders, isLoading } = useOrders(restaurantId);
   const { data: statuses = [] } = useOrderStatuses(restaurantId);
 
-  const [activeTab, setActiveTab] = useState(ALL_TAB);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const statusMap = new Map(statuses.map((s) => [s.id, s]));
-  const activeStatuses = statuses.filter((s) => s.isActive);
+  const activeStatuses = statuses
+    .filter((s) => s.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const filtered =
-    activeTab === ALL_TAB ? orders : orders.filter((o) => o.statusId === activeTab);
+  const filteredOrders = orders.filter((o) => {
+    if (dateFilter === 'today') return isToday(o.createdAt);
+    if (dateFilter === 'month') return isThisMonth(o.createdAt);
+    return true;
+  });
 
-  const countByStatus = (statusId: string) =>
-    orders.filter((o) => o.statusId === statusId).length;
+  const ordersByStatus = (statusId: string) =>
+    filteredOrders.filter((o) => o.statusId === statusId);
 
   if (!restaurantId) {
     return <p className="text-sm text-red-600">Tu cuenta no tiene un restaurante asignado.</p>;
@@ -45,95 +64,109 @@ export function OrdersManager() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-        Error al cargar los pedidos.
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 h-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-gray-900">Pedidos</h2>
-            <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+            <h2 className="text-2xl font-bold text-gray-900">Pedidos en vivo</h2>
+            <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
               <Wifi className="h-3 w-3" />
               En vivo
             </span>
           </div>
           <p className="mt-0.5 text-sm text-gray-500">
-            {orders.length} pedido{orders.length !== 1 ? 's' : ''} en total
+            {filteredOrders.length} pedido{filteredOrders.length !== 1 ? 's' : ''} activos
           </p>
         </div>
+
+        <button
+          onClick={() => window.location.reload()}
+          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refrescar
+        </button>
       </div>
 
-      {/* Tabs de estado */}
-      <div className="flex gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-1">
-        <button
-          onClick={() => setActiveTab(ALL_TAB)}
-          className={cn(
-            'flex-shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-            activeTab === ALL_TAB
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          )}
-        >
-          Todos ({orders.length})
-        </button>
-        {activeStatuses.map((status) => (
+      {/* Filtros de fecha */}
+      <div className="flex gap-2">
+        {([
+          { key: 'today', label: 'Hoy' },
+          { key: 'month', label: 'Este mes' },
+          { key: 'all', label: 'Todos' },
+        ] as { key: DateFilter; label: string }[]).map(({ key, label }) => (
           <button
-            key={status.id}
-            onClick={() => setActiveTab(status.id)}
-            className={cn(
-              'flex-shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-              activeTab === status.id
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            )}
+            key={key}
+            onClick={() => setDateFilter(key)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+              dateFilter === key
+                ? 'bg-gray-900 text-white'
+                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
           >
-            <span className="flex items-center gap-1.5">
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: status.color }}
-              />
-              {status.name}
-              {countByStatus(status.id) > 0 && (
-                <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-xs font-bold text-gray-700">
-                  {countByStatus(status.id)}
-                </span>
-              )}
-            </span>
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Lista */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <ShoppingBag className="h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">Sin pedidos</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {activeTab === ALL_TAB
-              ? 'Los pedidos aparecerán aquí en tiempo real.'
-              : 'No hay pedidos con este estado.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              status={statusMap.get(order.statusId)}
-              onOpen={setSelectedOrder}
-            />
-          ))}
-        </div>
-      )}
+      {/* Kanban */}
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6">
+        {activeStatuses.map((status) => {
+          const columnOrders = ordersByStatus(status.id);
+          return (
+            <div key={status.id} className="w-72 flex-shrink-0">
+              {/* Column header */}
+              <div className="mb-3 flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: status.color }}
+                />
+                <span className="font-semibold text-gray-800">{status.name}</span>
+                {columnOrders.length > 0 && (
+                  <span className="ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-600">
+                    {columnOrders.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Column body */}
+              <div
+                className="min-h-24 rounded-2xl p-2 space-y-3"
+                style={{ backgroundColor: `${status.color}18` }}
+              >
+                {columnOrders.length === 0 ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-gray-400">
+                    <div className="text-center">
+                      <ShoppingBag className="mx-auto mb-2 h-6 w-6 opacity-30" />
+                      <span>Sin pedidos</span>
+                    </div>
+                  </div>
+                ) : (
+                  columnOrders.map((order) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      status={status}
+                      onOpen={setSelectedOrder}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {activeStatuses.length === 0 && (
+          <div className="flex flex-1 items-center justify-center py-16 text-center">
+            <div>
+              <ShoppingBag className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+              <p className="text-gray-500">No hay estados configurados.</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Modal de detalle */}
       <OrderDetailModal

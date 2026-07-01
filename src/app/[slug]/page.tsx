@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { categoriesService } from '@/features/categories/services/categories.service';
+import { adicionalesService } from '@/features/adicionales/services/adicionales.service';
 import { MenuPage } from '@/features/menu/components/MenuPage';
 import { productsService } from '@/features/products/services/products.service';
 import { restaurantsService } from '@/features/restaurants/services/restaurants.service';
@@ -26,20 +27,22 @@ export default async function RestaurantMenuPage({ params }: Props) {
     notFound();
   }
 
-  const [categories, products] = await Promise.all([
+  const [categories, products, adicionales] = await Promise.all([
     categoriesService.getAll(restaurant.id),
     productsService.getAll(restaurant.id),
+    adicionalesService.getAll(restaurant.id),
   ]);
 
   const activeCategories = categories.filter((c) => c.isActive);
-  // Incluir inactivos pero marcados — el componente filtra isAvailable visualmente
   const activeProducts = products.filter((p) => p.isActive);
+  const activeAdicionales = adicionales.filter((a) => a.isActive);
 
   return (
     <MenuPage
       restaurant={restaurant}
       categories={activeCategories}
       products={activeProducts}
+      adicionales={activeAdicionales}
     />
   );
 }

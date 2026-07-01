@@ -6,11 +6,13 @@ export interface CartItem {
   cartId: string;
   productId: string;
   productName: string;
+  productImage?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
   additionals: Additional[];
   specialInstructions: string;
+  observacion?: string;
 }
 
 interface CartStore {
@@ -19,15 +21,14 @@ interface CartStore {
   restaurantName: string;
   items: CartItem[];
   isCartOpen: boolean;
-  isCheckoutOpen: boolean;
 
   initCart: (restaurantId: string, phone: string, name: string) => void;
   addItem: (item: Omit<CartItem, 'cartId' | 'subtotal'>) => void;
   removeItem: (cartId: string) => void;
   updateQuantity: (cartId: string, quantity: number) => void;
+  updateObservacion: (cartId: string, observacion: string) => void;
   clearCart: () => void;
   setCartOpen: (open: boolean) => void;
-  setCheckoutOpen: (open: boolean) => void;
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
@@ -36,10 +37,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
   restaurantName: '',
   items: [],
   isCartOpen: false,
-  isCheckoutOpen: false,
 
   initCart: (restaurantId, phone, name) => {
-    // Limpiar carrito si cambió el restaurante
     if (get().restaurantId !== restaurantId) {
       set({ restaurantId, restaurantPhone: phone, restaurantName: name, items: [] });
     } else {
@@ -72,9 +71,14 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }));
   },
 
+  updateObservacion: (cartId, observacion) => {
+    set((s) => ({
+      items: s.items.map((i) => i.cartId === cartId ? { ...i, observacion } : i),
+    }));
+  },
+
   clearCart: () => set({ items: [] }),
-  setCartOpen: (open) => set({ isCartOpen: open, isCheckoutOpen: false }),
-  setCheckoutOpen: (open) => set({ isCheckoutOpen: open, isCartOpen: false }),
+  setCartOpen: (open) => set({ isCartOpen: open }),
 }));
 
 // Selectores derivados

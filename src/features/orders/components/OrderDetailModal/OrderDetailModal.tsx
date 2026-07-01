@@ -5,6 +5,7 @@ import { Phone, MapPin, MessageSquare, CreditCard } from 'lucide-react';
 
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 import { useUpdateOrderStatus } from '../../hooks/useUpdateOrderStatus';
@@ -136,21 +137,16 @@ export function OrderDetailModal({
           )}
 
           <div className="flex gap-2">
-            <select
+            <Select
               value={selectedStatusId}
-              onChange={(e) => setSelectedStatusId(e.target.value)}
+              onChange={setSelectedStatusId}
               disabled={isPending}
-              className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-            >
-              <option value="">Cambiar a...</option>
-              {activeStatuses
+              placeholder="Cambiar a..."
+              options={activeStatuses
                 .filter((s) => s.id !== order.statusId)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </select>
+                .map((s) => ({ value: s.id, label: s.name }))}
+              style={{ flex: 1 }}
+            />
 
             <Button
               onClick={handleStatusUpdate}

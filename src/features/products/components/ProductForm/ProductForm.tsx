@@ -1,12 +1,14 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { formatCurrency } from '@/lib/utils';
+import { ROUTES } from '@/constants/routes';
 
 import { useProductForm } from '../../hooks/useProductForm';
 import { useCreateProduct, useUpdateProduct } from '../../hooks/useProductMutations';
@@ -16,6 +18,7 @@ export function ProductForm({
   product,
   restaurantId,
   categories,
+  adicionales,
   defaultSortOrder = 1,
   onSuccess,
   onCancel,
@@ -24,9 +27,7 @@ export function ProductForm({
     data,
     errors,
     handleChange,
-    addAdditional,
-    updateAdditional,
-    removeAdditional,
+    toggleAdicionalId,
     validate,
     toCreateData,
     toUpdateData,
@@ -57,27 +58,15 @@ export function ProductForm({
 
         {/* Categoría y nombre */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Categoría <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={data.categoryId}
-              onChange={(e) => handleChange('categoryId', e.target.value)}
-              disabled={isPending}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 disabled:bg-gray-50"
-            >
-              <option value="">Seleccioná una categoría</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            {errors.categoryId && (
-              <p className="text-xs text-red-600">{errors.categoryId}</p>
-            )}
-          </div>
+          <Select
+            label="Categoría *"
+            value={data.categoryId}
+            onChange={(v) => handleChange('categoryId', v)}
+            disabled={isPending}
+            error={errors.categoryId}
+            placeholder="Seleccioná una categoría"
+            options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+          />
 
           <Input
             label="Nombre del producto"
@@ -149,52 +138,50 @@ export function ProductForm({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">Adicionales</h3>
-            <button
-              type="button"
-              onClick={addAdditional}
-              disabled={isPending}
-              className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 disabled:opacity-50"
+            <Link
+              href={ROUTES.dashboard.adicionales}
+              className="text-xs font-medium text-orange-600 hover:text-orange-700"
+              tabIndex={-1}
             >
-              <Plus className="h-3.5 w-3.5" />
-              Agregar adicional
-            </button>
+              Administrar catálogo →
+            </Link>
           </div>
 
-          {data.additionals.length === 0 && (
-            <p className="text-xs text-gray-400">Sin adicionales. Podés agregar extras opcionales.</p>
+          {adicionales.length === 0 ? (
+            <p className="text-xs text-gray-400">
+              No hay adicionales creados.{' '}
+              <Link href={ROUTES.dashboard.adicionales} className="font-medium text-orange-600 hover:underline">
+                Crear adicionales →
+              </Link>
+            </p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {adicionales.map((a) => {
+                const checked = data.adicionalIds.includes(a.id);
+                return (
+                  <label
+                    key={a.id}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 px-3 py-2.5 transition-colors ${
+                      checked ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
+                    } ${!a.isActive ? 'opacity-50' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleAdicionalId(a.id)}
+                      disabled={isPending || !a.isActive}
+                      className="h-4 w-4 rounded flex-shrink-0"
+                      style={{ accentColor: '#f97316' }}
+                    />
+                    <span className="flex-1 text-sm font-medium text-gray-800">{a.name}</span>
+                    <span className="text-xs font-bold text-orange-500 flex-shrink-0">
+                      +{formatCurrency(a.price)}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           )}
-
-          <div className="space-y-2">
-            {data.additionals.map((additional, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={additional.name}
-                  onChange={(e) => updateAdditional(index, 'name', e.target.value)}
-                  placeholder="Nombre (Ej: Queso extra)"
-                  disabled={isPending}
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                />
-                <input
-                  type="number"
-                  value={additional.price}
-                  onChange={(e) => updateAdditional(index, 'price', Number(e.target.value))}
-                  placeholder="Precio"
-                  min="0"
-                  disabled={isPending}
-                  className="w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeAdditional(index)}
-                  disabled={isPending}
-                  className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
         </section>
 
         {/* Switches de estado */}

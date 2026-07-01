@@ -1,5 +1,3 @@
-import type { Additional } from '@/types';
-
 export interface ProductFormData {
   categoryId: string;
   name: string;
@@ -7,13 +5,8 @@ export interface ProductFormData {
   price: number;
   image: string;
   tag: string;
-  additionals: Additional[];
+  adicionalIds: string[];
   isActive: boolean;
   isAvailable: boolean;
   sortOrder: number;
-}
-
-export interface AdditionalFormRow {
-  name: string;
-  price: number;
 }

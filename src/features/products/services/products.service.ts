@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -18,6 +19,12 @@ function productsRef(restaurantId: string) {
 }
 
 export const productsService = {
+  async getById(restaurantId: string, id: string): Promise<Product | null> {
+    const snap = await getDoc(doc(productsRef(restaurantId), id));
+    if (!snap.exists()) return null;
+    return { ...snap.data(), id: snap.id } as Product;
+  },
+
   async getAll(restaurantId: string): Promise<Product[]> {
     const q = query(productsRef(restaurantId), orderBy('sortOrder', 'asc'));
     const snap = await getDocs(q);

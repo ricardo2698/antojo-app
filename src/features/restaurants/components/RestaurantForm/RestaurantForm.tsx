@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +11,120 @@ import { useRestaurantForm } from '../../hooks/useRestaurantForm';
 import { useCreateRestaurant } from '../../hooks/useRestaurantMutations';
 import { useUpdateRestaurant } from '../../hooks/useRestaurantMutations';
 import type { RestaurantFormProps } from './RestaurantForm.types';
+import type { RestaurantFormData } from '../../types/restaurant.types';
 
-export function RestaurantForm({ restaurant, onSuccess, onCancel }: RestaurantFormProps) {
+const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sm = "var(--font-space-mono, monospace)";
+
+const PALETTES = [
+  { name: 'Mango',   pri: '#F59211', sec: '#1F5130', acc: '#FFE7C4', bg: '#FBF3E9' },
+  { name: 'Fresa',   pri: '#E11D48', sec: '#4C0519', acc: '#FFE4E6', bg: '#FFF1F2' },
+  { name: 'Bosque',  pri: '#2C7A52', sec: '#14331F', acc: '#DDF0E4', bg: '#F3F8F3' },
+  { name: 'Océano',  pri: '#0284C7', sec: '#0C3250', acc: '#E0F2FE', bg: '#F0F8FF' },
+  { name: 'Uva',     pri: '#7C3AED', sec: '#2A1747', acc: '#ECE2FB', bg: '#F6F3FC' },
+  { name: 'Cacao',   pri: '#92400E', sec: '#1C0A00', acc: '#FDE68A', bg: '#FFFBEB' },
+];
+
+
+function ColorPicker({ label, hint, value, onChange, disabled }: { label: string; hint: string; value: string; onChange: (v: string) => void; disabled: boolean }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1.5px solid #E7DED6', borderRadius: 12, padding: '10px 12px', cursor: 'pointer' }}>
+      <div>
+        <div style={{ fontFamily: sg, fontSize: 13, color: '#5a5048', fontWeight: 500 }}>{label}</div>
+        <div style={{ fontFamily: sm, fontSize: 10, color: '#9a8f86', marginTop: 2 }}>{hint}</div>
+      </div>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: sm, fontSize: 11, color: '#9a8f86' }}>{value}</span>
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          style={{ width: 30, height: 30, border: 0, background: 'none', padding: 0, borderRadius: 8, cursor: 'pointer' }}
+        />
+      </span>
+    </label>
+  );
+}
+
+function PaletteSection({
+  data,
+  handleChange,
+  isPending,
+}: {
+  data: RestaurantFormData;
+  handleChange: <K extends keyof RestaurantFormData>(field: K, value: RestaurantFormData[K]) => void;
+  isPending: boolean;
+}) {
+  function applyPalette(p: typeof PALETTES[0]) {
+    handleChange('primaryColor', p.pri);
+    handleChange('secondaryColor', p.sec);
+    handleChange('accentColor', p.acc);
+    handleChange('bgColor', p.bg);
+  }
+
+  const isActive = (p: typeof PALETTES[0]) =>
+    p.pri === data.primaryColor && p.sec === data.secondaryColor && p.acc === data.accentColor;
+
+  return (
+    <section>
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">Paleta de colores del menú</h3>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <div style={{ fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: '#9a8f86', marginBottom: 10 }}>ELEGÍ UNA PALETA</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {PALETTES.map((p) => {
+              const active = isActive(p);
+              return (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => applyPalette(p)}
+                  disabled={isPending}
+                  style={{
+                    background: active ? '#FFF7F0' : '#fff',
+                    border: `1.5px solid ${active ? p.pri : '#E7DED6'}`,
+                    borderRadius: 12, padding: '10px 12px',
+                    cursor: 'pointer', textAlign: 'left',
+                    transition: 'border-color .12s, background .12s',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: 6, background: p.pri, display: 'block' }} />
+                    <span style={{ width: 18, height: 18, borderRadius: 6, background: p.sec, display: 'block' }} />
+                    <span style={{ width: 18, height: 18, borderRadius: 6, background: p.acc, display: 'block' }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: sg, fontWeight: 600, fontSize: 12, color: '#1B1512' }}>{p.name}</span>
+                    {active && <span style={{ fontFamily: sm, fontSize: 11, color: p.pri }}>✓</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: '#9a8f86', marginBottom: 10 }}>O PERSONALIZÁ</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <ColorPicker label="Primario" hint="Botones y precios" value={data.primaryColor} onChange={(v) => handleChange('primaryColor', v)} disabled={isPending} />
+            <ColorPicker label="Secundario" hint="Títulos y barra inferior" value={data.secondaryColor} onChange={(v) => handleChange('secondaryColor', v)} disabled={isPending} />
+            <ColorPicker label="Acento" hint="Destacados suaves" value={data.accentColor} onChange={(v) => handleChange('accentColor', v)} disabled={isPending} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange }: RestaurantFormProps) {
   const { data, errors, handleChange, validate, toCreateData, toUpdateData, isEditing } =
     useRestaurantForm(restaurant);
+
+  useEffect(() => {
+    onColorsChange?.({ pri: data.primaryColor, sec: data.secondaryColor, acc: data.accentColor, bg: data.bgColor, name: data.name });
+  }, [data.primaryColor, data.secondaryColor, data.accentColor, data.bgColor, data.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMutation = useCreateRestaurant();
   const updateMutation = useUpdateRestaurant();
@@ -68,6 +180,15 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel }: RestaurantFo
             />
           </div>
 
+          <Input
+            label="Tagline"
+            value={data.tagline}
+            onChange={(e) => handleChange('tagline', e.target.value)}
+            placeholder="Ej: granizados de mango artesanales"
+            hint="Subtítulo que aparece en el panel del administrador"
+            disabled={isPending}
+          />
+
           <Textarea
             label="Descripción"
             value={data.description}
@@ -102,6 +223,7 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel }: RestaurantFo
             onChange={(url) => handleChange('logo', url)}
             disabled={isPending}
             aspectRatio="wide"
+            objectFit="contain"
           />
           {errors.logo && <p className="text-xs text-red-600">{errors.logo}</p>}
 
@@ -140,54 +262,69 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel }: RestaurantFo
         </section>
 
         {/* Sección: Tema */}
+        <PaletteSection data={data} handleChange={handleChange} isPending={isPending} />
+
+        {/* Sección: Ubicación */}
         <section className="space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-            Paleta de colores
+            Ubicación
           </h3>
-          <div className="grid grid-cols-3 gap-4">
-            {(
-              [
-                { field: 'primaryColor', label: 'Color primario' },
-                { field: 'secondaryColor', label: 'Color secundario' },
-                { field: 'accentColor', label: 'Color de acento' },
-              ] as const
-            ).map(({ field, label }) => (
-              <div key={field} className="space-y-1">
-                <label className="block text-xs font-medium text-gray-600">{label}</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={data[field]}
-                    onChange={(e) => handleChange(field, e.target.value)}
-                    disabled={isPending}
-                    className="h-9 w-12 cursor-pointer rounded border border-gray-300 p-0.5"
-                  />
-                  <span className="font-mono text-xs text-gray-500">{data[field]}</span>
-                </div>
-              </div>
-            ))}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Dirección"
+              value={data.address}
+              onChange={(e) => handleChange('address', e.target.value)}
+              placeholder="Manzana D Casa 13B, Villa Universitaria"
+              disabled={isPending}
+            />
+            <Input
+              label="Ciudad"
+              value={data.city}
+              onChange={(e) => handleChange('city', e.target.value)}
+              placeholder="Santa Marta, Colombia"
+              disabled={isPending}
+            />
           </div>
+          <Input
+            label="Link Google Maps"
+            value={data.mapUrl}
+            onChange={(e) => handleChange('mapUrl', e.target.value)}
+            placeholder="https://maps.app.goo.gl/..."
+            hint="Se usa en el botón 'Cómo llegar' del menú"
+            disabled={isPending}
+          />
+          <Input
+            label="URL embed del mapa"
+            value={data.mapEmbed}
+            onChange={(e) => handleChange('mapEmbed', e.target.value)}
+            placeholder="https://maps.google.com/maps?q=...&output=embed"
+            hint="En Google Maps: Compartir → Insertar mapa → copiar la URL del src del iframe"
+            disabled={isPending}
+          />
+        </section>
 
-          {/* Preview */}
-          <div className="flex gap-2">
-            <span
-              className="rounded-lg px-4 py-2 text-sm font-medium text-white"
-              style={{ backgroundColor: data.primaryColor }}
-            >
-              Botón primario
-            </span>
-            <span
-              className="rounded-lg px-4 py-2 text-sm font-medium text-white"
-              style={{ backgroundColor: data.secondaryColor }}
-            >
-              Secundario
-            </span>
-            <span
-              className="rounded-lg px-4 py-2 text-sm font-medium"
-              style={{ backgroundColor: data.accentColor, color: data.secondaryColor }}
-            >
-              Acento
-            </span>
+        {/* Sección: Redes sociales */}
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            Redes sociales
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Instagram"
+              value={data.instagram}
+              onChange={(e) => handleChange('instagram', e.target.value)}
+              placeholder="@tu.restaurante"
+              hint="Solo el @handle, ej: @mangova.sm"
+              disabled={isPending}
+            />
+            <Input
+              label="Facebook"
+              value={data.facebook}
+              onChange={(e) => handleChange('facebook', e.target.value)}
+              placeholder="Nombre de tu página"
+              hint="Nombre de la página en Facebook"
+              disabled={isPending}
+            />
           </div>
         </section>
 

@@ -19,6 +19,7 @@ export interface RestaurantTheme {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  bgColor: string;
 }
 
 export type HeaderType = 'image' | 'text';
@@ -27,12 +28,21 @@ export interface Restaurant {
   id: string;
   slug: string;
   name: string;
+  tagline?: string;
   description: string;
   phone: string;
   logo: string;
   bannerImage?: string;
   headerType: HeaderType;
   theme: RestaurantTheme;
+  // Ubicación
+  address?: string;
+  city?: string;
+  mapUrl?: string;
+  mapEmbed?: string;
+  // Redes sociales
+  instagram?: string;
+  facebook?: string;
   adminUserId: string;
   isActive: boolean;
   createdAt: string;
@@ -65,8 +75,24 @@ export interface Category {
 export type CreateCategoryData = Omit<Category, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdateCategoryData = Partial<Omit<Category, 'id' | 'restaurantId' | 'createdAt' | 'updatedAt'>>;
 
+// ===== ADICIONALES =====
+
+export interface Adicional {
+  id: string;
+  restaurantId: string;
+  name: string;
+  price: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateAdicionalData = Pick<Adicional, 'name' | 'price' | 'isActive'>;
+export type UpdateAdicionalData = Partial<Pick<Adicional, 'name' | 'price' | 'isActive'>>;
+
 // ===== PRODUCTOS =====
 
+// Used only in cart / order storage (resolved name+price, not DB entity)
 export interface Additional {
   name: string;
   price: number;
@@ -81,7 +107,7 @@ export interface Product {
   price: number;
   image?: string;
   tag?: string;
-  additionals: Additional[];
+  adicionalIds: string[];
   isActive: boolean;
   isAvailable: boolean;
   sortOrder: number;

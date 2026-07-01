@@ -1,109 +1,177 @@
 'use client';
 
 import Image from 'next/image';
-import { Edit, Trash2, Package } from 'lucide-react';
+import { Edit2, Trash2, Package, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
 
-import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';
-
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { ProductCardProps } from './ProductCard.types';
+
+const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sm = "var(--font-space-mono, monospace)";
 
 export function ProductCard({
   product,
   category,
+  index,
+  isFirst,
+  isLast,
   onEdit,
   onToggleAvailable,
   onDelete,
+  onMoveUp,
+  onMoveDown,
   isToggling,
   isDeleting,
+  isMoving,
 }: ProductCardProps) {
-  const { id, name, description, price, image, tag, additionals, isActive, isAvailable, sortOrder } =
-    product;
+  const { id, name, price, image, tag, additionals, isActive, isAvailable } = product;
+
+  const iconBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 34, height: 34, borderRadius: 9, border: 'none',
+    background: 'transparent', cursor: 'pointer', transition: 'background .12s',
+  };
 
   return (
-    <article className="flex gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+    <div
+      style={{
+        fontFamily: sg,
+        display: 'flex', alignItems: 'center', gap: 14,
+        background: '#fff', border: '1px solid #EFE7DF', borderRadius: 16, padding: '12px 16px',
+        opacity: (!isActive || isMoving) ? 0.65 : 1,
+        transition: 'box-shadow .18s, opacity .2s',
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px -8px rgba(27,21,18,.14)'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+    >
+      {/* Up/Down + position */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        <Tooltip content="Mover arriba" side="left">
+          <button
+            onClick={() => onMoveUp(index)}
+            disabled={isFirst || isMoving}
+            style={{
+              ...iconBtn,
+              color: isFirst ? '#d8ccc2' : '#9a8f86',
+              cursor: isFirst ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        </Tooltip>
+
+        <span style={{ fontFamily: sm, fontSize: 11, fontWeight: 700, color: '#c9a78f', lineHeight: 1 }}>
+          {index + 1}
+        </span>
+
+        <Tooltip content="Mover abajo" side="left">
+          <button
+            onClick={() => onMoveDown(index)}
+            disabled={isLast || isMoving}
+            style={{
+              ...iconBtn,
+              color: isLast ? '#d8ccc2' : '#9a8f86',
+              cursor: isLast ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => { if (!isLast) (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </Tooltip>
+      </div>
+
       {/* Imagen */}
-      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+      <div
+        style={{
+          position: 'relative', width: 64, height: 64, flexShrink: 0,
+          borderRadius: 12, overflow: 'hidden', background: '#FFF1E4',
+        }}
+      >
         {image ? (
           <Image src={image} alt={name} fill className="object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Package className="h-8 w-8 text-gray-300" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+            <Package style={{ width: 28, height: 28, color: '#FFB02E', opacity: 0.5 }} />
           </div>
         )}
       </div>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col gap-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-gray-400">#{sortOrder}</span>
-              <p className="font-medium text-gray-900 truncate">{name}</p>
-              {tag && (
-                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-                  {tag}
-                </span>
-              )}
-            </div>
-            {category && (
-              <p className="text-xs text-gray-400">{category.name}</p>
-            )}
-          </div>
-          <p className="flex-shrink-0 font-bold text-gray-900">{formatCurrency(price)}</p>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+          <span style={{ fontWeight: 700, fontSize: 15, color: '#1B1512' }}>{name}</span>
+
+          {category && (
+            <span style={{ background: 'rgba(255,106,26,.12)', color: '#FF6A1A', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 9px' }}>
+              {category.name}
+            </span>
+          )}
+          {!isActive && (
+            <span style={{ background: '#EDE7E0', color: '#8a7f76', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '2px 9px' }}>
+              Inactivo
+            </span>
+          )}
+          {!isAvailable && isActive && (
+            <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '2px 9px' }}>
+              No disponible
+            </span>
+          )}
         </div>
 
-        {description && (
-          <p className="line-clamp-1 text-xs text-gray-500">{description}</p>
-        )}
-
-        {additionals.length > 0 && (
-          <p className="text-xs text-gray-400">
-            {additionals.length} adicional{additionals.length !== 1 ? 'es' : ''}
-          </p>
-        )}
-
-        {/* Badges y acciones */}
-        <div className="mt-auto flex items-center justify-between">
-          <div className="flex gap-1.5 flex-wrap">
-            {!isActive && <Badge variant="default">Inactivo</Badge>}
-            <Badge variant={isAvailable ? 'success' : 'warning'}>
-              {isAvailable ? 'Disponible' : 'No disponible'}
-            </Badge>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onToggleAvailable(id, !isAvailable)}
-              disabled={isToggling}
-              className="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: isAvailable ? '#fef3c7' : '#d1fae5',
-                color: isAvailable ? '#92400e' : '#065f46',
-              }}
-            >
-              {isAvailable ? 'No disponible' : 'Disponible'}
-            </button>
-
-            <button
-              onClick={() => onEdit(product)}
-              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
-              title="Editar"
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </button>
-
-            <button
-              onClick={() => onDelete(id, name)}
-              disabled={isDeleting}
-              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-              title="Eliminar"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: '#FF6A1A' }}>{formatCurrency(price)}</span>
+          {additionals.length > 0 && (
+            <span style={{ fontFamily: sm, fontSize: 11, color: '#b8aaa0' }}>
+              {additionals.length} adicional{additionals.length !== 1 ? 'es' : ''}
+            </span>
+          )}
         </div>
       </div>
-    </article>
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        <Tooltip content={isAvailable ? 'Marcar no disponible' : 'Marcar disponible'}>
+          <button
+            onClick={() => onToggleAvailable(id, !isAvailable)}
+            disabled={isToggling}
+            style={{ ...iconBtn, opacity: isToggling ? 0.5 : 1 }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            {isAvailable
+              ? <Eye style={{ width: 16, height: 16, color: '#3F9E6A' }} />
+              : <EyeOff style={{ width: 16, height: 16, color: '#b8aaa0' }} />
+            }
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Editar">
+          <button
+            onClick={() => onEdit(product)}
+            style={iconBtn}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Edit2 style={{ width: 15, height: 15, color: '#8a7f76' }} />
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Eliminar">
+          <button
+            onClick={() => onDelete(id, name)}
+            disabled={isDeleting}
+            style={{ ...iconBtn, opacity: isDeleting ? 0.5 : 1 }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FDF1EF'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Trash2 style={{ width: 15, height: 15, color: '#D8412F' }} />
+          </button>
+        </Tooltip>
+      </div>
+    </div>
   );
 }

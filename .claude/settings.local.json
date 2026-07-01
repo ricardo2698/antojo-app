@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(cd \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\" && npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --yes 2>&1)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(cd \"C:\\\\Users\\\\LENOVO\\\\Downloads\" && unzip -o \"Antojo App logo design.zip\" -d \"antojo-logo-temp\" && ls \"antojo-logo-temp/\")",
+      "Bash(cp \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\antojo-logo-temp\\\\downloads\\\\antojo-bite.svg\" \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\\\\src\\\\app\\\\icon.svg\" && cp \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\antojo-logo-temp\\\\downloads\\\\antojo-bite.svg\" \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\\\\public\\\\logo.svg\" && cp \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\antojo-logo-temp\\\\downloads\\\\antojo-bite-appicon.png\" \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\\\\public\\\\logo.png\")",
+      "Bash(ls \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\Antojo App logo design \\(1\\)\")",
+      "Bash(ls \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\Antojo App logo design \\(1\\)/downloads\")",
+      "Bash(cp \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\Antojo App logo design \\(1\\)\\\\downloads\\\\antojo-bite-white.png\" \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\\\\public\\\\logo-white.png\" && cp \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\Antojo App logo design \\(1\\)\\\\downloads\\\\antojo-bite.svg\" \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\\\\src\\\\app\\\\icon.svg\")",
+      "Bash(wc -c \"C:\\\\Users\\\\LENOVO\\\\Downloads\\\\Antojo App logo design \\(1\\)\\\\Antojo Login.dc.html\")",
+      "Bash(find \"C:\\\\Users\\\\LENOVO\\\\Documents\\\\projects\\\\antojo-express\\\\src\" -name \"*.tsx\" | xargs grep -l -i \"loading\\\\|spinner\\\\|loader\" 2>/dev/null | head -20)",
+      "Bash(find \"C:/Users/LENOVO/Documents/projects/antojo-express\" -name \"*.tsx\" 2>/dev/null | xargs grep -l -i \"loading\\\\|spinner\\\\|loader\" 2>/dev/null | head -20)",
+      "Bash(cd \"C:\\\\Users\\\\LENOVO\\\\Desktop\\\\projects\\\\antojo-app\" && npm install @radix-ui/react-tooltip)",
+      "Read(//c/Users/LENOVO/Desktop/**)",
+      "Read(//c/Users/LENOVO/Documents/**)",
+      "Bash(find \"C:\\\\Users\\\\LENOVO\\\\Documents\\\\projects\\\\antojo-express\\\\src\" -name \"*.tsx\" -o -name \"*.ts\" | xargs grep -l -i \"adicional\" 2>/dev/null)"
     ]
   }
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { z } from 'zod';
 
-import type { Product, CreateProductData, UpdateProductData, Additional } from '@/types';
+import type { Product, CreateProductData, UpdateProductData } from '@/types';
 
 import type { ProductFormData } from '../types/product.types';
 
@@ -19,7 +19,7 @@ const defaultValues: ProductFormData = {
   price: 0,
   image: '',
   tag: '',
-  additionals: [],
+  adicionalIds: [],
   isActive: true,
   isAvailable: true,
   sortOrder: 1,
@@ -41,7 +41,7 @@ export function useProductForm(
       price: product.price,
       image: product.image ?? '',
       tag: product.tag ?? '',
-      additionals: product.additionals,
+      adicionalIds: product.adicionalIds ?? [],
       isActive: product.isActive,
       isAvailable: product.isAvailable,
       sortOrder: product.sortOrder,
@@ -55,26 +55,12 @@ export function useProductForm(
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   }
 
-  function addAdditional() {
+  function toggleAdicionalId(id: string) {
     setData((prev) => ({
       ...prev,
-      additionals: [...prev.additionals, { name: '', price: 0 }],
-    }));
-  }
-
-  function updateAdditional(index: number, field: keyof Additional, value: string | number) {
-    setData((prev) => ({
-      ...prev,
-      additionals: prev.additionals.map((a, i) =>
-        i === index ? { ...a, [field]: value } : a
-      ),
-    }));
-  }
-
-  function removeAdditional(index: number) {
-    setData((prev) => ({
-      ...prev,
-      additionals: prev.additionals.filter((_, i) => i !== index),
+      adicionalIds: prev.adicionalIds.includes(id)
+        ? prev.adicionalIds.filter((x) => x !== id)
+        : [...prev.adicionalIds, id],
     }));
   }
 
@@ -98,11 +84,11 @@ export function useProductForm(
       restaurantId,
       categoryId: data.categoryId,
       name: data.name,
-      description: data.description || undefined,
+      ...(data.description ? { description: data.description } : {}),
       price: data.price,
-      image: data.image || undefined,
-      tag: data.tag || undefined,
-      additionals: data.additionals.filter((a) => a.name.trim()),
+      ...(data.image ? { image: data.image } : {}),
+      ...(data.tag ? { tag: data.tag } : {}),
+      adicionalIds: data.adicionalIds,
       isActive: data.isActive,
       isAvailable: data.isAvailable,
       sortOrder: data.sortOrder,
@@ -113,11 +99,11 @@ export function useProductForm(
     return {
       categoryId: data.categoryId,
       name: data.name,
-      description: data.description || undefined,
+      ...(data.description ? { description: data.description } : {}),
       price: data.price,
-      image: data.image || undefined,
-      tag: data.tag || undefined,
-      additionals: data.additionals.filter((a) => a.name.trim()),
+      ...(data.image ? { image: data.image } : {}),
+      ...(data.tag ? { tag: data.tag } : {}),
+      adicionalIds: data.adicionalIds,
       isActive: data.isActive,
       isAvailable: data.isAvailable,
       sortOrder: data.sortOrder,
@@ -128,9 +114,7 @@ export function useProductForm(
     data,
     errors,
     handleChange,
-    addAdditional,
-    updateAdditional,
-    removeAdditional,
+    toggleAdicionalId,
     validate,
     toCreateData,
     toUpdateData,

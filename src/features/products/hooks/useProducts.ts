@@ -12,3 +12,11 @@ export function useProducts(restaurantId: string) {
     staleTime: 1000 * 60 * 5,
   });
 }
+
+export function useProduct(restaurantId: string, id: string) {
+  return useQuery({
+    queryKey: QUERY_KEYS.product(id),
+    queryFn: () => productsService.getById(restaurantId, id),
+    enabled: !!restaurantId && !!id,
+  });
+}

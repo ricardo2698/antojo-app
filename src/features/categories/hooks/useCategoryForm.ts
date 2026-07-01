@@ -53,7 +53,7 @@ export function useCategoryForm(
     return {
       restaurantId,
       name: data.name,
-      description: data.description || undefined,
+      ...(data.description ? { description: data.description } : {}),
       sortOrder: data.sortOrder,
       isActive: data.isActive,
     };
@@ -62,7 +62,7 @@ export function useCategoryForm(
   function toUpdateData(): UpdateCategoryData {
     return {
       name: data.name,
-      description: data.description || undefined,
+      ...(data.description ? { description: data.description } : {}),
       sortOrder: data.sortOrder,
       isActive: data.isActive,
     };

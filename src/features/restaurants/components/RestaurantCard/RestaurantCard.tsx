@@ -1,12 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { Edit, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react';
-
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 
 import type { RestaurantCardProps } from './RestaurantCard.types';
+
+const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sm = "var(--font-space-mono, monospace)";
 
 export function RestaurantCard({
   restaurant,
@@ -17,94 +16,160 @@ export function RestaurantCard({
   isDeleting,
 }: RestaurantCardProps) {
   const { id, name, slug, description, phone, logo, isActive, theme } = restaurant;
+  const primaryColor = theme.primaryColor;
+
+  // Derive a soft tinted gradient for the header when there's no logo
+  const headerBg = logo
+    ? '#f8f8f7'
+    : isActive
+      ? `linear-gradient(135deg, ${primaryColor}22, ${primaryColor}44)`
+      : 'linear-gradient(135deg, #F1EEEA, #E6E0D9)';
+
+  const nameColor = logo ? '#1B1512' : isActive ? primaryColor : '#8a7f76';
+
+  const btnBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    fontFamily: sg, fontWeight: 500, fontSize: 13, borderRadius: 10,
+    padding: '10px 14px', cursor: 'pointer', border: '1.5px solid #E7DED6',
+    background: '#fff', color: '#5a5048', transition: 'background .15s',
+  };
 
   return (
-    <article className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Logo / header */}
-      <div className="relative h-32 w-full overflow-hidden rounded-t-xl bg-gray-100">
+    <article
+      className="rcard"
+      style={{
+        background: '#fff', border: '1px solid #EFE7DF', borderRadius: 16,
+        overflow: 'hidden', fontFamily: sg,
+        transition: 'transform .18s, box-shadow .18s',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)';
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 18px 40px -22px rgba(27,21,18,.4)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = '';
+        (e.currentTarget as HTMLElement).style.boxShadow = '';
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          position: 'relative', height: 130,
+          background: headerBg,
+          display: 'grid', placeItems: 'center',
+        }}
+      >
         {logo ? (
-          <Image src={logo} alt={name} fill className="object-cover" />
+          <Image src={logo} alt={name} fill className="object-contain p-4" />
         ) : (
-          <div
-            className="h-full w-full"
-            style={{ backgroundColor: theme.primaryColor }}
-          />
+          <div style={{ fontWeight: 700, fontSize: 30, color: nameColor, letterSpacing: '-.02em' }}>
+            {name}
+          </div>
         )}
-        <div className="absolute right-2 top-2">
-          <Badge variant={isActive ? 'success' : 'danger'}>
-            {isActive ? 'Activo' : 'Inactivo'}
-          </Badge>
-        </div>
+        <span
+          style={{
+            position: 'absolute', top: 12, right: 12,
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: sm, fontSize: 10, fontWeight: 700,
+            color: isActive ? '#2C7A52' : '#8a7f76',
+            background: isActive ? '#DFF3E7' : '#EDE7E0',
+            borderRadius: 999, padding: '5px 10px',
+          }}
+        >
+          ● {isActive ? 'ACTIVO' : 'INACTIVO'}
+        </span>
       </div>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div>
-          <h3 className="font-semibold text-gray-900">{name}</h3>
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-orange-600">
-            <ExternalLink className="h-3 w-3" />
-            /{slug}
+      <div style={{ padding: '18px 18px 8px' }}>
+        <div style={{ fontWeight: 700, fontSize: 18, color: '#1B1512', marginBottom: 4 }}>{name}</div>
+
+        <a
+          href={`/${slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            fontFamily: sm, fontSize: 12, color: '#FF6A1A', textDecoration: 'none', marginBottom: 12,
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          </svg>
+          /{slug}
+        </a>
+
+        {description && (
+          <p style={{ fontSize: 13, color: '#6f655d', margin: '0 0 10px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {description}
           </p>
-        </div>
+        )}
 
-        <p className="line-clamp-2 text-sm text-gray-500">{description}</p>
-
-        <p className="text-xs text-gray-400">{phone}</p>
+        {phone && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: sm, fontSize: 12, color: '#8a7f76', marginBottom: 14 }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
+            </svg>
+            {phone}
+          </div>
+        )}
 
         {/* Theme colors */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-400">Tema:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, paddingBottom: 2 }}>
+          <span style={{ fontFamily: sm, fontSize: 11, color: '#9a8f86' }}>Tema</span>
           {[theme.primaryColor, theme.secondaryColor, theme.accentColor].map((color, i) => (
             <span
               key={i}
-              className="h-4 w-4 rounded-full border border-white shadow-sm"
-              style={{ backgroundColor: color }}
               title={color}
+              style={{
+                width: 18, height: 18, borderRadius: '50%', backgroundColor: color,
+                border: '2px solid #fff', boxShadow: '0 0 0 1px #E7DED6',
+              }}
             />
           ))}
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 border-t border-gray-100 p-3">
-        <Button
-          variant="ghost"
-          size="sm"
+      <div style={{ display: 'flex', gap: 8, padding: '14px 18px', borderTop: '1px solid #F1EAE3' }}>
+        <button
+          style={{ ...btnBase, flex: 1, opacity: isToggling ? 0.6 : 1 }}
           onClick={() => onToggleActive(id, !isActive)}
-          isLoading={isToggling}
-          className="flex-1"
+          disabled={isToggling}
         >
           {isActive ? (
             <>
-              <EyeOff className="h-3.5 w-3.5" />
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" />
+              </svg>
               Desactivar
             </>
           ) : (
             <>
-              <Eye className="h-3.5 w-3.5" />
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+              </svg>
               Activar
             </>
           )}
-        </Button>
+        </button>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onEdit(restaurant)}
-          className="flex-1"
-        >
-          <Edit className="h-3.5 w-3.5" />
+        <button style={{ ...btnBase, flex: 1 }} onClick={() => onEdit(restaurant)}>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" />
+          </svg>
           Editar
-        </Button>
+        </button>
 
-        <Button
-          variant="danger"
-          size="sm"
+        <button
+          style={{ ...btnBase, borderColor: '#F6D3CE', color: '#D8412F', background: '#FDF1EF', flexShrink: 0, padding: '10px 12px', opacity: isDeleting ? 0.6 : 1 }}
           onClick={() => onDelete(id, name)}
-          isLoading={isDeleting}
+          disabled={isDeleting}
         >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          </svg>
+        </button>
       </div>
     </article>
   );

@@ -9,5 +9,6 @@ export interface AccountingStats {
   totalRevenue: number;
   orderCount: number;
   avgTicket: number;
-  byPaymentMethod: Record<string, number>;
+  byPaymentMethod: Record<string, { total: number; count: number }>;
+  byProduct: Array<{ name: string; units: number }>;
 }

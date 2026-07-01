@@ -5,4 +5,5 @@ export interface ImageUploadProps {
   disabled?: boolean;
   className?: string;
   aspectRatio?: 'square' | 'wide';
+  objectFit?: 'cover' | 'contain';
 }

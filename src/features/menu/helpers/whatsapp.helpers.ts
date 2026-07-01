@@ -1,12 +1,16 @@
 import type { CartItem } from '@/store/cart.store';
 import { formatCurrency } from '@/lib/utils';
 
+export type DeliveryType = 'domicilio' | 'recoger' | '';
+export type PaymentMethod = 'transferencia' | 'efectivo' | '';
+
 interface CheckoutData {
   customerName: string;
   customerPhone: string;
-  customerAddress: string;
-  paymentMethod: string;
-  notes: string;
+  deliveryType: DeliveryType;
+  address?: string;
+  barrio?: string;
+  paymentMethod: PaymentMethod;
 }
 
 export function buildWhatsAppMessage(
@@ -19,32 +23,36 @@ export function buildWhatsAppMessage(
     .map((item) => {
       let line = `• ${item.quantity}× ${item.productName} — ${formatCurrency(item.subtotal)}`;
       if (item.additionals.length > 0) {
-        const adds = item.additionals.map((a) => `${a.name} (+${formatCurrency(a.price)})`).join(', ');
-        line += `\n  ↳ ${adds}`;
+        item.additionals.forEach((a) => {
+          line += `\n  ↳ ${a.name} (+${formatCurrency(a.price)})`;
+        });
       }
-      if (item.specialInstructions) {
-        line += `\n  📝 ${item.specialInstructions}`;
+      if (item.observacion?.trim()) {
+        line += `\n  📝 ${item.observacion.trim()}`;
       }
       return line;
     })
     .join('\n');
 
+  const paymentLabel = checkout.paymentMethod === 'transferencia' ? '💳 Transferencia' : '💵 Efectivo';
+  const deliveryLabel = checkout.deliveryType === 'domicilio' ? '🚚 Domicilio' : '🏪 Recoger en tienda';
+
   const lines = [
     `🍽️ *Nuevo pedido — ${restaurantName}*`,
-    '',
-    `👤 *Cliente:* ${checkout.customerName}`,
-    `📱 *Teléfono:* ${checkout.customerPhone}`,
-    checkout.customerAddress ? `📍 *Dirección:* ${checkout.customerAddress}` : null,
-    '',
-    `*Pedido:*`,
+    `━━━━━━━━━━━━━━━━━━━`,
     itemsText,
-    '',
-    `💳 *Pago:* ${checkout.paymentMethod}`,
-    `💰 *Total: ${formatCurrency(total)}*`,
-    checkout.notes ? `\n📝 *Notas:* ${checkout.notes}` : null,
-  ]
-    .filter((l) => l !== null)
-    .join('\n');
+    `━━━━━━━━━━━━━━━━━━━`,
+    `👤 *Cliente:* ${checkout.customerName}`,
+    `📱 *Celular:* ${checkout.customerPhone}`,
+    `📦 *Entrega:* ${deliveryLabel}`,
+    ...(checkout.deliveryType === 'domicilio' && checkout.address ? [`🏠 *Dirección:* ${checkout.address}`] : []),
+    ...(checkout.deliveryType === 'domicilio' && checkout.barrio ? [`📍 *Barrio:* ${checkout.barrio}`] : []),
+    `━━━━━━━━━━━━━━━━━━━`,
+    `*Subtotal: ${formatCurrency(total)}*`,
+    `*Pago: ${paymentLabel}*`,
+    ``,
+    `Confirmo mi pedido 🙌`,
+  ].join('\n');
 
   return lines;
 }

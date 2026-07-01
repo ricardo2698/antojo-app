@@ -6,46 +6,71 @@ interface MenuHeaderProps {
   restaurant: Restaurant;
 }
 
-export function MenuHeader({ restaurant }: MenuHeaderProps) {
-  const { name, description, logo, bannerImage, headerType, theme } = restaurant;
+const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sm = "var(--font-space-mono, monospace)";
 
-  if (headerType === 'image' && bannerImage) {
-    return (
-      <header className="relative h-48 w-full overflow-hidden sm:h-64">
-        <Image src={bannerImage} alt={name} fill className="object-cover" priority />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-white">
-          {logo && (
-            <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-white shadow-lg">
-              <Image src={logo} alt={`Logo ${name}`} fill className="object-cover" />
-            </div>
-          )}
-          <h1 className="text-2xl font-bold drop-shadow-lg sm:text-3xl">{name}</h1>
-          {description && (
-            <p className="max-w-md text-sm text-white/80 drop-shadow">{description}</p>
+export function MenuHeader({ restaurant }: MenuHeaderProps) {
+  const { name, tagline, description, logo, theme } = restaurant;
+  const { primaryColor: pri, secondaryColor: sec, accentColor: acc } = theme;
+  const subtitle = tagline || description;
+
+  return (
+    <div style={{
+      margin: '6px 16px 0',
+      background: '#fff',
+      borderRadius: 24,
+      padding: '24px 20px 20px',
+      position: 'relative',
+      overflow: 'hidden',
+      boxShadow: '0 10px 30px -18px rgba(0,0,0,.25)',
+    }}>
+      {/* top gradient bar */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${pri}, ${acc})` }} />
+
+      {/* glow */}
+      <div style={{
+        position: 'absolute', left: '50%', top: 24,
+        width: 160, height: 160, transform: 'translateX(-50%)',
+        borderRadius: '50%',
+        background: `radial-gradient(circle, ${acc}cc, transparent 70%)`,
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', fontFamily: sg }}>
+        {/* logo circle */}
+        <div style={{
+          width: 96, height: 96, borderRadius: '50%',
+          background: '#fff', boxShadow: '0 6px 20px -6px rgba(0,0,0,.22)',
+          display: 'grid', placeItems: 'center',
+          overflow: 'hidden', border: '1px solid #f0ece7',
+          position: 'relative', flexShrink: 0,
+        }}>
+          {logo ? (
+            <Image src={logo} alt={name} fill style={{ objectFit: 'contain', padding: 8 }} />
+          ) : (
+            <span style={{ fontWeight: 700, fontSize: 36, color: pri }}>{name[0]?.toUpperCase()}</span>
           )}
         </div>
-      </header>
-    );
-  }
 
-  // headerType === 'text'
-  return (
-    <header
-      className="w-full px-4 py-8 text-center"
-      style={{ backgroundColor: theme.primaryColor }}
-    >
-      <div className="mx-auto max-w-2xl">
-        {logo && (
-          <div className="relative mx-auto mb-3 h-20 w-20 overflow-hidden rounded-full border-2 border-white/30 shadow-lg">
-            <Image src={logo} alt={`Logo ${name}`} fill className="object-cover" />
-          </div>
+        <h1 style={{ fontWeight: 700, fontSize: 26, letterSpacing: '-.02em', color: sec, margin: '16px 0 0', fontFamily: sg }}>
+          {name}
+        </h1>
+
+        {subtitle && (
+          <p style={{ fontFamily: sg, fontSize: 14, lineHeight: 1.5, color: '#7a7269', margin: '8px 0 0', maxWidth: 280 }}>
+            {subtitle}
+          </p>
         )}
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">{name}</h1>
-        {description && (
-          <p className="mt-1 text-sm text-white/80">{description}</p>
-        )}
+
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          marginTop: 14, fontFamily: sm, fontSize: 11, fontWeight: 700,
+          color: pri, background: acc, borderRadius: 999, padding: '6px 14px',
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: pri, display: 'inline-block' }} />
+          ABIERTO · 20 min
+        </div>
       </div>
-    </header>
+    </div>
   );
 }

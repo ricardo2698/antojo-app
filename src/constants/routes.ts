@@ -14,6 +14,8 @@ export const ROUTES = {
     categorias: '/dashboard/categorias',
     estados: '/dashboard/estados',
     contabilidad: '/dashboard/contabilidad',
+    adicionales: '/dashboard/adicionales',
+    configuracion: '/dashboard/configuracion',
   },
   // Public menu
   menu: (slug: string) => `/${slug}`,

@@ -6,12 +6,27 @@ export function calculateStats(orders: Order[]): AccountingStats {
   const orderCount = orders.length;
   const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
 
-  const byPaymentMethod = orders.reduce<Record<string, number>>((acc, o) => {
-    acc[o.paymentMethod] = (acc[o.paymentMethod] ?? 0) + o.total;
+  const byPaymentMethod = orders.reduce<Record<string, { total: number; count: number }>>(
+    (acc, o) => {
+      const prev = acc[o.paymentMethod] ?? { total: 0, count: 0 };
+      acc[o.paymentMethod] = { total: prev.total + o.total, count: prev.count + 1 };
+      return acc;
+    },
+    {}
+  );
+
+  const productMap = orders.reduce<Record<string, number>>((acc, o) => {
+    o.items.forEach((item) => {
+      acc[item.productName] = (acc[item.productName] ?? 0) + item.quantity;
+    });
     return acc;
   }, {});
 
-  return { totalRevenue, orderCount, avgTicket, byPaymentMethod };
+  const byProduct = Object.entries(productMap)
+    .map(([name, units]) => ({ name, units }))
+    .sort((a, b) => b.units - a.units);
+
+  return { totalRevenue, orderCount, avgTicket, byPaymentMethod, byProduct };
 }
 
 export function getPresetRange(preset: 'today' | 'week' | 'month'): DateRange {

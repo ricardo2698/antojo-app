@@ -4,6 +4,7 @@ import { useAuth } from '@/features/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Sidebar } from './Sidebar';
+import { AppLoader } from '@/components/ui/AppLoader';
 import { ROUTES } from '@/constants/routes';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -16,20 +17,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
+  if (loading) return <AppLoader theme="dark" message="Cargando" />;
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen" style={{ background: '#FBF8F5', fontFamily: "var(--font-space-grotesk, 'Inter', sans-serif)" }}>
       <Sidebar />
-      <main className="flex-1 p-6 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto p-8">{children}</main>
     </div>
   );
 }

@@ -1,0 +1,1 @@
+export { AdicionalesManager } from './AdicionalesManager';
