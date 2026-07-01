@@ -119,7 +119,7 @@ export function MenuProductCard({ product, primaryColor, secondaryColor, accentC
           onClick={() => isAvailable && onSelect(product)}
           disabled={!isAvailable}
           style={{
-            width: '100%', border: 0, borderRadius: 14, padding: 15,
+            width: '100%', border: 0, borderRadius: 999, padding: 15,
             cursor: isAvailable ? 'pointer' : 'not-allowed',
             fontFamily: sg, fontWeight: 700, fontSize: 15, color: '#fff',
             background: primaryColor,
