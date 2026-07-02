@@ -172,6 +172,13 @@ export function OrderFilters({ onFilterChange }: OrderFiltersProps) {
 
 ---
 
+## Imágenes
+
+- Usar siempre `<img>` nativo — **nunca** `<Image>` de `next/image`.
+- La regla `@next/next/no-img-element` está desactivada globalmente en `.eslintrc.json`.
+
+---
+
 ## Patrones prohibidos
 
 ```tsx

@@ -11,7 +11,7 @@ import type { RestaurantColorsPayload } from '@/features/restaurants/components/
 const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
 
 const DEFAULT_COLORS: RestaurantColorsPayload = {
-  pri: '#F59211', sec: '#1F5130', acc: '#FFE7C4', bg: '#FBF3E9', name: '',
+  pri: '#F59211', sec: '#1F5130', acc: '#FFE7C4', bg: '#FBF3E9', name: '', layout: 'cards',
 };
 
 export default function NuevoRestaurantePage() {
