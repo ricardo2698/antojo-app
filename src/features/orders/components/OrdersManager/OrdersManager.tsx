@@ -22,7 +22,7 @@ import { useOrderStatuses } from '@/features/order-statuses/hooks/useOrderStatus
 import { useProducts } from '@/features/products/hooks/useProducts';
 import { useAdicionales } from '@/features/adicionales/hooks/useAdicionales';
 import { useCategories } from '@/features/categories';
-import type { Order, OrderStatus } from '@/types';
+import type { Order } from '@/types';
 
 import { useOrders } from '../../hooks/useOrders';
 import { useUpdateOrderStatus } from '../../hooks/useUpdateOrderStatus';

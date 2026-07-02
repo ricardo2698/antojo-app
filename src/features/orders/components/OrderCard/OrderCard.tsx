@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   ArrowRight, Clock, MapPin, MessageCircle, Pencil, Bike,
-  StickyNote, Check, X, XCircle,
+  StickyNote, Check, XCircle,
 } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';

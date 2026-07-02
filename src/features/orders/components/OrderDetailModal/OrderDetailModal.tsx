@@ -154,7 +154,7 @@ export function OrderDetailModal({
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 13, color: '#5a5048' }}>
                   <MapPin size={13} color="#9a8f86" style={{ flexShrink: 0, marginTop: 1 }} />
                   {order.customerAddress}
-                  {(order as any).barrio && <span style={{ color: '#9a8f86' }}>— {(order as any).barrio}</span>}
+                  {order.barrio && <span style={{ color: '#9a8f86' }}>— {order.barrio}</span>}
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
@@ -209,7 +209,7 @@ export function OrderDetailModal({
                       )}
                       {item.specialInstructions && (
                         <div style={{ marginTop: 3, fontSize: 12, color: '#9a8f86', fontStyle: 'italic', paddingLeft: 27 }}>
-                          "{item.specialInstructions}"
+                          &ldquo;{item.specialInstructions}&rdquo;
                         </div>
                       )}
                     </div>

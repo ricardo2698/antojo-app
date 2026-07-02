@@ -1,7 +1,7 @@
 import { collection, doc, updateDoc, setDoc } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase/config';
-import type { CreateOrderData, Order } from '@/types';
+import type { CreateOrderData } from '@/types';
 
 function ordersRef(restaurantId: string) {
   return collection(db, 'restaurants', restaurantId, 'orders');

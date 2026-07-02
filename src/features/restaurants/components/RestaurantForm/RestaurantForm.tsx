@@ -141,7 +141,7 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
         await createMutation.mutateAsync(toCreateData());
       }
       onSuccess();
-    } catch (error) {
+    } catch {
       // El error se muestra desde el estado del mutation
     }
   }

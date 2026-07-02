@@ -25,7 +25,7 @@ export function ProductCard({
   isDeleting,
   isMoving,
 }: ProductCardProps) {
-  const { id, name, price, image, tag, adicionalIds, isActive, isAvailable } = product;
+  const { id, name, price, image, adicionalIds, isActive, isAvailable } = product;
 
   const iconBtn: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
