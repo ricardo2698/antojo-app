@@ -116,12 +116,21 @@ export function ProductForm({
             disabled={isPending}
           />
 
-          <Input
+          <Select
             label="Tag especial"
-            value={data.tag}
-            onChange={(e) => handleChange('tag', e.target.value)}
-            placeholder="Nuevo, Especial..."
+            value={data.tag ?? ''}
+            onChange={(v) => handleChange('tag', v)}
             disabled={isPending}
+            placeholder="Sin tag especial"
+            options={[
+              { value: '',                        label: 'Sin tag especial' },
+              { value: '🔥 El más pedido',        label: '🔥 El más pedido' },
+              { value: '💝 El favorito de todos', label: '💝 El favorito de todos' },
+              { value: '⭐ Recomendado hoy',      label: '⭐ Recomendado hoy' },
+              { value: '✨ Nuevo',                label: '✨ Nuevo' },
+              { value: '🏆 El clásico',           label: '🏆 El clásico' },
+              { value: '🌀 Edición especial',     label: '🌀 Edición especial' },
+            ]}
           />
         </div>
 
@@ -132,6 +141,7 @@ export function ProductForm({
           onChange={(url) => handleChange('image', url)}
           disabled={isPending}
           aspectRatio="wide"
+          objectFit="contain"
         />
 
         {/* Adicionales */}

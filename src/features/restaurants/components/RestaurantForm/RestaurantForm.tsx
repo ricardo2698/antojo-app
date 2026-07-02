@@ -123,8 +123,8 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
     useRestaurantForm(restaurant);
 
   useEffect(() => {
-    onColorsChange?.({ pri: data.primaryColor, sec: data.secondaryColor, acc: data.accentColor, bg: data.bgColor, name: data.name });
-  }, [data.primaryColor, data.secondaryColor, data.accentColor, data.bgColor, data.name]); // eslint-disable-line react-hooks/exhaustive-deps
+    onColorsChange?.({ pri: data.primaryColor, sec: data.secondaryColor, acc: data.accentColor, bg: data.bgColor, name: data.name, layout: data.menuLayout });
+  }, [data.primaryColor, data.secondaryColor, data.accentColor, data.bgColor, data.name, data.menuLayout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMutation = useCreateRestaurant();
   const updateMutation = useUpdateRestaurant();
@@ -259,6 +259,74 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
               aspectRatio="wide"
             />
           )}
+        </section>
+
+        {/* Sección: Formato del menú */}
+        <section>
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">Formato del menú público</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {([
+              {
+                id: 'cards' as const,
+                name: 'Tarjetas',
+                desc: 'Foto grande + botón añadir',
+                thumb: (
+                  <div style={{ position: 'absolute', inset: 9, background: '#fff', borderRadius: 6, boxShadow: '0 2px 6px rgba(0,0,0,.1)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ height: 34, background: '#E7DED6' }} />
+                    <div style={{ height: 7, width: 52, margin: '6px 8px 0', background: '#cfc6bd', borderRadius: 3 }} />
+                    <div style={{ height: 9, margin: '6px 8px', background: data.primaryColor, borderRadius: 4 }} />
+                  </div>
+                ),
+              },
+              {
+                id: 'list' as const,
+                name: 'Lista por categorías',
+                desc: 'Acordeón compacto con +',
+                thumb: (
+                  <div style={{ position: 'absolute', inset: 9, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ height: 15, background: data.secondaryColor, borderRadius: 4 }} />
+                    {[0, 1].map((i) => (
+                      <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, background: '#fff', borderRadius: 5, padding: '0 6px', boxShadow: '0 1px 3px rgba(0,0,0,.1)' }}>
+                        <span style={{ width: 16, height: 16, borderRadius: 4, background: '#E7DED6', flexShrink: 0 }} />
+                        <span style={{ flex: 1, height: 5, background: '#d8cec4', borderRadius: 3 }} />
+                        <span style={{ width: 12, height: 12, borderRadius: 4, background: data.primaryColor, flexShrink: 0 }} />
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+            ]).map((f) => {
+              const sel = data.menuLayout === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => handleChange('menuLayout', f.id)}
+                  disabled={isPending}
+                  style={{
+                    background: '#fff',
+                    border: sel ? `2px solid #FF6A1A` : '1.5px solid #ece6df',
+                    borderRadius: 14,
+                    padding: 14,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'border-color .12s',
+                  }}
+                >
+                  <div style={{ position: 'relative', height: 74, borderRadius: 10, overflow: 'hidden', marginBottom: 10, background: sel ? '#FFF3EA' : '#F6F1EB' }}>
+                    {f.thumb}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div>
+                      <div style={{ fontFamily: sg, fontWeight: 600, fontSize: 13, color: '#1B1512', lineHeight: 1.2 }}>{f.name}</div>
+                      <div style={{ fontFamily: sg, fontSize: 11, color: '#8a7f76', marginTop: 2 }}>{f.desc}</div>
+                    </div>
+                    <span style={{ width: 18, height: 18, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 11, color: '#fff', background: '#FF6A1A', opacity: sel ? 1 : 0, flexShrink: 0 }}>✓</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         {/* Sección: Tema */}

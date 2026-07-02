@@ -22,6 +22,8 @@ export interface RestaurantFormData {
   // Redes sociales
   instagram: string;
   facebook: string;
+  // Formato del menú
+  menuLayout: 'cards' | 'list';
   // Solo en creación
   adminName: string;
   adminEmail: string;

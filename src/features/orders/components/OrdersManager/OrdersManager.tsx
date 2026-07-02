@@ -21,6 +21,7 @@ import { useAuth } from '@/features/auth';
 import { useOrderStatuses } from '@/features/order-statuses/hooks/useOrderStatuses';
 import { useProducts } from '@/features/products/hooks/useProducts';
 import { useAdicionales } from '@/features/adicionales/hooks/useAdicionales';
+import { useCategories } from '@/features/categories';
 import type { Order, OrderStatus } from '@/types';
 
 import { useOrders } from '../../hooks/useOrders';
@@ -28,6 +29,7 @@ import { useUpdateOrderStatus } from '../../hooks/useUpdateOrderStatus';
 import { OrderCard } from '../OrderCard';
 import { OrderDetailModal } from '../OrderDetailModal';
 import { ManualOrderModal } from '../ManualOrderModal';
+import { EditOrderModal } from '../EditOrderModal';
 
 type DateFilter = 'today' | 'month' | 'all';
 
@@ -163,10 +165,12 @@ export function OrdersManager() {
   const { data: statuses = [] } = useOrderStatuses(restaurantId);
   const { data: products = [] } = useProducts(restaurantId);
   const { data: adicionales = [] } = useAdicionales(restaurantId);
+  const { data: categories = [] } = useCategories(restaurantId);
   const { updateStatus } = useUpdateOrderStatus(restaurantId);
 
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [dragError, setDragError] = useState<string | null>(null);
@@ -411,8 +415,10 @@ export function OrdersManager() {
                         order={order}
                         status={status}
                         statuses={activeStatuses}
+                        restaurantId={restaurantId}
                         onOpen={setSelectedOrder}
                         onAdvance={handleAdvance}
+                        onEdit={setEditingOrder}
                       />
                     ))
                   )}
@@ -439,8 +445,10 @@ export function OrdersManager() {
                 order={activeOrder}
                 status={activeOrderStatus}
                 statuses={activeStatuses}
+                restaurantId={restaurantId}
                 onOpen={() => {}}
                 onAdvance={() => {}}
+                onEdit={() => {}}
               />
             </div>
           ) : null}
@@ -456,6 +464,19 @@ export function OrdersManager() {
         onClose={() => setSelectedOrder(null)}
       />
 
+      {/* Modal editar pedido */}
+      {editingOrder && (
+        <EditOrderModal
+          order={editingOrder}
+          restaurantId={restaurantId}
+          products={products}
+          adicionales={adicionales}
+          categories={categories}
+          onClose={() => setEditingOrder(null)}
+          onSaved={() => setEditingOrder(null)}
+        />
+      )}
+
       {/* Modal pedido manual */}
       <ManualOrderModal
         isOpen={isManualModalOpen}
@@ -464,6 +485,7 @@ export function OrdersManager() {
         receivedStatusId={receivedStatusId}
         products={products}
         adicionales={adicionales}
+        categories={categories}
       />
 
       {/* Toasts nuevos pedidos */}

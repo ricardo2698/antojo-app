@@ -9,6 +9,7 @@ import type { Adicional, Category, Product, Restaurant } from '@/types';
 import { CartDrawer } from '../CartDrawer';
 import { CategoryTabs } from '../CategoryTabs';
 import { MenuHeader } from '../MenuHeader';
+import { MenuListLayout } from '../MenuListLayout';
 import { MenuProductCard } from '../MenuProductCard';
 import { ProductModal } from '../ProductModal';
 
@@ -57,6 +58,7 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
     initCart(restaurant.id, restaurant.phone, restaurant.name);
   }, [restaurant.id, restaurant.phone, restaurant.name, initCart]);
 
+  const layout = restaurant.menuLayout ?? 'cards';
   const visibleProducts = products.filter((p) => p.categoryId === activeCategoryId && p.isActive);
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
@@ -104,43 +106,57 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
       {/* Hero */}
       <MenuHeader restaurant={restaurant} />
 
-      {/* Category chips */}
-      {categories.length > 0 && (
-        <CategoryTabs
+      {/* Layout: Tarjetas */}
+      {layout === 'cards' && (
+        <>
+          {categories.length > 0 && (
+            <CategoryTabs
+              categories={categories}
+              activeId={activeCategoryId}
+              primaryColor={pri}
+              secondaryColor={sec}
+              onSelect={setActiveCategoryId}
+            />
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 16px 140px' }}>
+            {visibleProducts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 0', color: '#9a8f86', fontFamily: sg }}>
+                Sin productos en esta categoría.
+              </div>
+            ) : (
+              visibleProducts.map((product) => (
+                <MenuProductCard
+                  key={product.id}
+                  product={product}
+                  primaryColor={pri}
+                  secondaryColor={sec}
+                  accentColor={acc}
+                  categoryName={categoryMap.get(product.categoryId)?.name}
+                  onSelect={setSelectedProduct}
+                />
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Layout: Lista por categorías */}
+      {layout === 'list' && (
+        <MenuListLayout
           categories={categories}
-          activeId={activeCategoryId}
+          products={products}
           primaryColor={pri}
           secondaryColor={sec}
-          onSelect={setActiveCategoryId}
+          onSelect={setSelectedProduct}
         />
       )}
 
-      {/* Products */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 16px 140px' }}>
-        {visibleProducts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: '#9a8f86', fontFamily: sg }}>
-            Sin productos en esta categoría.
-          </div>
-        ) : (
-          visibleProducts.map((product) => (
-            <MenuProductCard
-              key={product.id}
-              product={product}
-              primaryColor={pri}
-              secondaryColor={sec}
-              accentColor={acc}
-              categoryName={categoryMap.get(product.categoryId)?.name}
-              onSelect={setSelectedProduct}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Sticky bottom cart bar */}
+      {/* Fixed bottom cart bar */}
       {count > 0 && (
         <div style={{
-          position: 'sticky', bottom: 0, zIndex: 6,
-          margin: '0 12px 12px',
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
+          padding: '0 12px 12px',
+        }}><div style={{
           borderRadius: 16,
           boxShadow: '0 12px 30px -12px rgba(0,0,0,.45)',
           overflow: 'hidden',
@@ -200,8 +216,11 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
               </svg>
             </div>
           </div>
-        </div>
+        </div></div>
       )}
+
+      {/* Spacer para que el fixed bar no tape contenido */}
+      {count > 0 && <div style={{ height: 100 }} />}
 
       {/* Ubicación */}
       {(restaurant.address || restaurant.mapEmbed) && (

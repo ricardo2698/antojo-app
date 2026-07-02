@@ -43,6 +43,7 @@ const defaultValues: RestaurantFormData = {
   mapEmbed: '',
   instagram: '',
   facebook: '',
+  menuLayout: 'cards',
   adminName: '',
   adminEmail: '',
   adminPassword: '',
@@ -73,6 +74,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       mapEmbed: restaurant.mapEmbed ?? '',
       instagram: restaurant.instagram ?? '',
       facebook: restaurant.facebook ?? '',
+      menuLayout: restaurant.menuLayout ?? 'cards',
       adminName: '',
       adminEmail: '',
       adminPassword: '',
@@ -136,6 +138,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       ...(data.mapEmbed ? { mapEmbed: data.mapEmbed } : {}),
       ...(data.instagram ? { instagram: data.instagram } : {}),
       ...(data.facebook ? { facebook: data.facebook } : {}),
+      menuLayout: data.menuLayout,
       adminEmail: data.adminEmail,
       adminPassword: data.adminPassword,
       adminName: data.adminName,
@@ -164,6 +167,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       ...(data.mapEmbed ? { mapEmbed: data.mapEmbed } : {}),
       ...(data.instagram ? { instagram: data.instagram } : {}),
       ...(data.facebook ? { facebook: data.facebook } : {}),
+      menuLayout: data.menuLayout,
     };
   }
 

@@ -25,7 +25,7 @@ export function ProductCard({
   isDeleting,
   isMoving,
 }: ProductCardProps) {
-  const { id, name, price, image, tag, additionals, isActive, isAvailable } = product;
+  const { id, name, price, image, tag, adicionalIds, isActive, isAvailable } = product;
 
   const iconBtn: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -124,9 +124,9 @@ export function ProductCard({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontWeight: 700, fontSize: 14, color: '#FF6A1A' }}>{formatCurrency(price)}</span>
-          {additionals.length > 0 && (
+          {adicionalIds.length > 0 && (
             <span style={{ fontFamily: sm, fontSize: 11, color: '#b8aaa0' }}>
-              {additionals.length} adicional{additionals.length !== 1 ? 'es' : ''}
+              {adicionalIds.length} adicional{adicionalIds.length !== 1 ? 'es' : ''}
             </span>
           )}
         </div>

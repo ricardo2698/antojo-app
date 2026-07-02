@@ -39,4 +39,32 @@ export const ordersService = {
       updatedAt: new Date().toISOString(),
     });
   },
+
+  async updateDeliveryFee(restaurantId: string, id: string, deliveryFee: number): Promise<void> {
+    await updateDoc(doc(ordersRef(restaurantId), id), {
+      deliveryFee,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async updateIsPaid(restaurantId: string, id: string, isPaid: boolean): Promise<void> {
+    await updateDoc(doc(ordersRef(restaurantId), id), {
+      isPaid,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async updateInternalNote(restaurantId: string, id: string, internalNote: string): Promise<void> {
+    await updateDoc(doc(ordersRef(restaurantId), id), {
+      internalNote,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async updateData(restaurantId: string, id: string, data: import('@/types').UpdateOrderData): Promise<void> {
+    await updateDoc(doc(ordersRef(restaurantId), id), {
+      ...data,
+      updatedAt: new Date().toISOString(),
+    });
+  },
 };

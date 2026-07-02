@@ -11,6 +11,7 @@ interface CheckoutData {
   address?: string;
   barrio?: string;
   paymentMethod: PaymentMethod;
+  location?: { lat: number; lng: number };
 }
 
 export function buildWhatsAppMessage(
@@ -47,6 +48,7 @@ export function buildWhatsAppMessage(
     `📦 *Entrega:* ${deliveryLabel}`,
     ...(checkout.deliveryType === 'domicilio' && checkout.address ? [`🏠 *Dirección:* ${checkout.address}`] : []),
     ...(checkout.deliveryType === 'domicilio' && checkout.barrio ? [`📍 *Barrio:* ${checkout.barrio}`] : []),
+    ...(checkout.location ? [`📌 *Ubicación:* https://maps.google.com/?q=${checkout.location.lat},${checkout.location.lng}`] : []),
     `━━━━━━━━━━━━━━━━━━━`,
     `*Subtotal: ${formatCurrency(total)}*`,
     `*Pago: ${paymentLabel}*`,

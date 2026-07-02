@@ -1,15 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import { Phone, MapPin, MessageSquare, CreditCard } from 'lucide-react';
+import { X, Phone, MapPin, MessageSquare, Package } from 'lucide-react';
 
-import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 import { useUpdateOrderStatus } from '../../hooks/useUpdateOrderStatus';
 import type { OrderDetailModalProps } from './OrderDetailModal.types';
+
+const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sm = "var(--font-space-mono, monospace)";
+
+const DELIVERY_EMOJI: Record<string, string> = {
+  recoger: '🏪',
+  domicilio: '🛵',
+};
+
+const PAYMENT_EMOJI: Record<string, string> = {
+  Efectivo: '💵',
+  Transferencia: '🏧',
+};
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: sm, fontSize: 10, fontWeight: 700, letterSpacing: '.1em',
+      color: '#FF6A1A', textTransform: 'uppercase' as const, marginBottom: 10,
+    }}>
+      {children}
+    </div>
+  );
+}
 
 export function OrderDetailModal({
   order,
@@ -24,157 +45,283 @@ export function OrderDetailModal({
   const activeStatuses = statuses.filter((s) => s.isActive);
   const currentStatus = statuses.find((s) => s.id === order?.statusId);
 
-  async function handleStatusUpdate() {
-    if (!order || !selectedStatusId || selectedStatusId === order.statusId) return;
-    await updateStatus(order.id, selectedStatusId);
-    setSelectedStatusId('');
+  async function handleStatusUpdate(statusId: string) {
+    if (!order || statusId === order.statusId) return;
+    setSelectedStatusId(statusId);
+    await updateStatus(order.id, statusId);
   }
 
   function handleWhatsApp() {
     if (!order) return;
-    const newStatus = statuses.find((s) => s.id === selectedStatusId);
+    const status = statuses.find((s) => s.id === (selectedStatusId || order.statusId));
     const msg = encodeURIComponent(
-      `Hola ${order.customerName}! Tu pedido ${order.orderNumber} está ahora en estado: *${newStatus?.name ?? currentStatus?.name}* 🍽️`
+      `Hola ${order.customerName}! Tu pedido ${order.orderNumber} está ahora en estado: *${status?.name}* 🍽️`
     );
     window.open(`https://wa.me/${order.customerPhone.replace(/\D/g, '')}?text=${msg}`, '_blank');
   }
 
-  if (!order) return null;
+  if (!isOpen || !order) return null;
+
+  const paymentEmoji = PAYMENT_EMOJI[order.paymentMethod] ?? '💰';
+  const deliveryEmoji = order.deliveryType ? (DELIVERY_EMOJI[order.deliveryType] ?? '📦') : null;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Pedido ${order.orderNumber}`}
-      description={formatDate(order.createdAt)}
-      size="lg"
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(27,21,18,.45)', backdropFilter: 'blur(4px)',
+        fontFamily: sg,
+      }}
+      onClick={onClose}
     >
-      <div className="space-y-5 p-6">
-        {/* Cliente */}
-        <section className="space-y-1.5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Cliente</h3>
-          <p className="text-base font-semibold text-gray-900">{order.customerName}</p>
-          <p className="flex items-center gap-1.5 text-sm text-gray-600">
-            <Phone className="h-3.5 w-3.5" />
-            {order.customerPhone}
-          </p>
-          {order.customerAddress && (
-            <p className="flex items-center gap-1.5 text-sm text-gray-600">
-              <MapPin className="h-3.5 w-3.5" />
-              {order.customerAddress}
-            </p>
-          )}
-          <p className="flex items-center gap-1.5 text-sm text-gray-600">
-            <CreditCard className="h-3.5 w-3.5" />
-            {order.paymentMethod}
-          </p>
-        </section>
-
-        {/* Items */}
-        <section className="space-y-1.5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Ítems del pedido
-          </h3>
-          <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
-            {order.items.map((item, i) => (
-              <div key={i} className="px-4 py-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
-                      {item.quantity}× {item.productName}
-                    </p>
-                    {item.additionals.length > 0 && (
-                      <p className="mt-0.5 text-xs text-gray-400">
-                        + {item.additionals.map((a) => a.name).join(', ')}
-                      </p>
-                    )}
-                    {item.specialInstructions && (
-                      <p className="mt-0.5 text-xs italic text-gray-400">
-                        "{item.specialInstructions}"
-                      </p>
-                    )}
-                  </div>
-                  <p className="flex-shrink-0 text-sm font-semibold text-gray-900">
-                    {formatCurrency(item.subtotal)}
-                  </p>
-                </div>
+      <div
+        style={{
+          background: '#fff', borderRadius: 24, width: '100%', maxWidth: 560,
+          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          boxShadow: '0 32px 64px -20px rgba(0,0,0,.35)',
+          margin: '0 16px', overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 24px 16px', borderBottom: '1px solid #F0EBE6',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, background: '#FFF3E8',
+              display: 'grid', placeItems: 'center', flexShrink: 0,
+            }}>
+              <Package size={18} color="#FF6A1A" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: '#1B1512', letterSpacing: '-.01em' }}>
+                Pedido {order.orderNumber}
               </div>
-            ))}
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm font-bold text-gray-900">Total</span>
-              <span className="text-base font-bold text-gray-900">{formatCurrency(order.total)}</span>
+              <div style={{ fontFamily: sm, fontSize: 11, color: '#9a8f86', marginTop: 1 }}>
+                {formatDate(order.createdAt)}
+              </div>
             </div>
           </div>
-        </section>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32, height: 32, borderRadius: 10, border: '1.5px solid #E7DED6',
+              background: '#fff', display: 'grid', placeItems: 'center',
+              cursor: 'pointer', color: '#9a8f86', flexShrink: 0,
+            }}
+          >
+            <X size={15} />
+          </button>
+        </div>
 
-        {/* Notas */}
-        {order.notes && (
-          <section className="space-y-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Notas</h3>
-            <p className="flex items-start gap-1.5 text-sm text-gray-600">
-              <MessageSquare className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-              {order.notes}
-            </p>
-          </section>
-        )}
+        {/* Scrollable body */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '20px 24px' }}>
 
-        {/* Estado */}
-        <section className="space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Estado del pedido
-          </h3>
-
+          {/* Current status badge */}
           {currentStatus && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Actual:</span>
-              <span
-                className="rounded-full px-3 py-1 text-xs font-semibold text-white"
-                style={{ backgroundColor: currentStatus.color }}
-              >
-                {currentStatus.name}
-              </span>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: '#9a8f86' }}>Estado actual:</span>
+                <span style={{
+                  borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 700,
+                  color: '#fff', background: currentStatus.color,
+                }}>
+                  {currentStatus.name}
+                </span>
+              </div>
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Select
-              value={selectedStatusId}
-              onChange={setSelectedStatusId}
-              disabled={isPending}
-              placeholder="Cambiar a..."
-              options={activeStatuses
-                .filter((s) => s.id !== order.statusId)
-                .map((s) => ({ value: s.id, label: s.name }))}
-              style={{ flex: 1 }}
-            />
-
-            <Button
-              onClick={handleStatusUpdate}
-              disabled={!selectedStatusId || selectedStatusId === order.statusId}
-              isLoading={isPending}
-            >
-              Actualizar
-            </Button>
+          {/* Cliente */}
+          <div style={{ marginBottom: 20 }}>
+            <SectionLabel>Cliente</SectionLabel>
+            <div style={{
+              background: '#FBF8F5', borderRadius: 14, padding: '14px 16px',
+              border: '1px solid #EFE7DF', display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#1B1512' }}>
+                {order.customerName}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#5a5048' }}>
+                <Phone size={13} color="#9a8f86" />
+                {order.customerPhone}
+              </div>
+              {order.customerAddress && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 13, color: '#5a5048' }}>
+                  <MapPin size={13} color="#9a8f86" style={{ flexShrink: 0, marginTop: 1 }} />
+                  {order.customerAddress}
+                  {(order as any).barrio && <span style={{ color: '#9a8f86' }}>— {(order as any).barrio}</span>}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                {deliveryEmoji && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: '#fff', border: '1.5px solid #E7DED6', borderRadius: 999,
+                    padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#1B1512',
+                  }}>
+                    {deliveryEmoji} {order.deliveryType === 'domicilio' ? 'Domicilio' : 'Recoger en tienda'}
+                  </span>
+                )}
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: '#fff', border: '1.5px solid #E7DED6', borderRadius: 999,
+                  padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#1B1512',
+                }}>
+                  {paymentEmoji} {order.paymentMethod}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {selectedStatusId && (
-            <button
-              type="button"
-              onClick={handleWhatsApp}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-green-300 bg-green-50 py-2 text-sm font-medium text-green-700 transition-colors hover:bg-green-100"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-              </svg>
-              Notificar por WhatsApp
-            </button>
+          {/* Items */}
+          <div style={{ marginBottom: 20 }}>
+            <SectionLabel>Ítems del pedido</SectionLabel>
+            <div style={{ border: '1px solid #EFE7DF', borderRadius: 14, overflow: 'hidden' }}>
+              {order.items.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: i < order.items.length - 1 ? '1px solid #F0EBE6' : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1B1512' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: 20, height: 20, borderRadius: 6, background: '#FF6A1A',
+                          color: '#fff', fontSize: 11, fontWeight: 700, marginRight: 7, flexShrink: 0,
+                        }}>
+                          {item.quantity}
+                        </span>
+                        {item.productName}
+                      </div>
+                      {item.additionals.length > 0 && (
+                        <div style={{ marginTop: 4, fontSize: 12, color: '#9a8f86', paddingLeft: 27 }}>
+                          + {item.additionals.map((a) => a.name).join(', ')}
+                        </div>
+                      )}
+                      {item.specialInstructions && (
+                        <div style={{ marginTop: 3, fontSize: 12, color: '#9a8f86', fontStyle: 'italic', paddingLeft: 27 }}>
+                          "{item.specialInstructions}"
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1B1512', flexShrink: 0 }}>
+                      {formatCurrency(item.subtotal)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 16px', background: '#FBF8F5',
+              }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: '#1B1512' }}>Total</span>
+                <span style={{ fontWeight: 800, fontSize: 16, color: '#FF6A1A' }}>{formatCurrency(order.total)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Notas */}
+          {order.notes && (
+            <div style={{ marginBottom: 20 }}>
+              <SectionLabel>Notas</SectionLabel>
+              <div style={{
+                display: 'flex', gap: 8, background: '#FBF8F5', borderRadius: 12,
+                padding: '12px 14px', border: '1px solid #EFE7DF', fontSize: 13, color: '#5a5048',
+              }}>
+                <MessageSquare size={14} color="#9a8f86" style={{ flexShrink: 0, marginTop: 1 }} />
+                {order.notes}
+              </div>
+            </div>
           )}
 
-          {error && (
-            <p className="text-xs text-red-600">{error}</p>
-          )}
-        </section>
+          {/* Cambiar estado */}
+          <div style={{ marginBottom: 4 }}>
+            <SectionLabel>Cambiar estado</SectionLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+              {activeStatuses.map((s) => {
+                const isCurrent = s.id === order.statusId;
+                const isSelected = s.id === selectedStatusId;
+                return (
+                  <button
+                    key={s.id}
+                    disabled={isPending || isCurrent}
+                    onClick={() => handleStatusUpdate(s.id)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 14px', borderRadius: 999, fontSize: 13, fontWeight: 600,
+                      cursor: isCurrent ? 'default' : 'pointer',
+                      border: isCurrent
+                        ? `2px solid ${s.color}`
+                        : isSelected
+                          ? `2px solid #FF6A1A`
+                          : '1.5px solid #E7DED6',
+                      background: isCurrent ? s.color : isSelected ? '#FF6A1A' : '#fff',
+                      color: isCurrent || isSelected ? '#fff' : '#5a5048',
+                      opacity: isPending && !isSelected ? 0.5 : 1,
+                      transition: 'all .15s',
+                    }}
+                  >
+                    <span style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: isCurrent || isSelected ? '#fff' : s.color,
+                      flexShrink: 0,
+                    }} />
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+            {error && (
+              <p style={{ fontSize: 12, color: '#e53e3e', marginTop: 8 }}>{error}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '16px 24px', borderTop: '1px solid #F0EBE6', flexShrink: 0,
+          display: 'flex', gap: 10,
+        }}>
+          <button
+            onClick={handleWhatsApp}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '12px 16px', borderRadius: 14, border: '1.5px solid #25D366',
+              background: '#f0faf4', color: '#1a7a3e', fontFamily: sg,
+              fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'background .12s',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#dcf5e7'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#f0faf4'; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            </svg>
+            Notificar por WhatsApp
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '12px 20px', borderRadius: 14, border: '1.5px solid #E7DED6',
+              background: '#fff', color: '#5a5048', fontFamily: sg,
+              fontSize: 14, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+              transition: 'background .12s',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FBF8F5'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#fff'; }}
+          >
+            Cerrar
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }

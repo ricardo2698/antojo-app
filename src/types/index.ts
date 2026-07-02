@@ -43,6 +43,8 @@ export interface Restaurant {
   // Redes sociales
   instagram?: string;
   facebook?: string;
+  // Formato del menú público
+  menuLayout?: 'cards' | 'list';
   adminUserId: string;
   isActive: boolean;
   createdAt: string;
@@ -164,15 +166,25 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerAddress?: string;
+  barrio?: string;
+  deliveryType?: 'recoger' | 'domicilio';
+  deliveryFee?: number;
   paymentMethod: string;
+  isPaid?: boolean;
   items: OrderItem[];
   subtotal: number;
   total: number;
   statusId: string;
   notes?: string;
+  internalNote?: string;
+  location?: { lat: number; lng: number };
   createdAt: string;
   updatedAt: string;
 }
 
 export type CreateOrderData = Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt'>;
-export type UpdateOrderData = Partial<Pick<Order, 'statusId' | 'notes'>>;
+export type UpdateOrderData = Partial<Pick<Order,
+  'statusId' | 'notes' | 'deliveryFee' | 'isPaid' | 'internalNote' |
+  'items' | 'subtotal' | 'total' | 'customerName' | 'customerPhone' |
+  'customerAddress' | 'barrio' | 'deliveryType' | 'paymentMethod'
+>>;

@@ -121,7 +121,7 @@ export function ProductsManager() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3">
+      <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
@@ -136,7 +136,11 @@ export function ProductsManager() {
           value={filterCategory}
           onChange={setFilterCategory}
           placeholder="Todas las categorías"
-          options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+          style={{ width: 220, flexShrink: 0 }}
+          options={[
+            { value: '', label: 'Todas las categorías' },
+            ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+          ]}
         />
       </div>
 
