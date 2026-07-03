@@ -45,6 +45,7 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
   }
 
   function handleAdd() {
+    if (!product) return;
     addItem({
       productId: product.id,
       productName: product.name,

@@ -14,6 +14,24 @@
 
 ---
 
+## Regla crítica: Props de componentes NO van en `types/feature.types.ts`
+
+Los tipos `XxxFormProps`, `XxxCardProps`, `XxxModalProps` (props de componentes) van **exclusivamente** en `components/Xxx/Xxx.types.ts`.
+
+**Nunca** duplicarlos en `types/feature.types.ts` — provoca errores de ambigüedad al re-exportar con `export * from` o `export type * from`.
+
+```ts
+// ❌ PROHIBIDO — duplicar props del componente en el types del feature
+// features/orders/types/order.types.ts
+export interface OrderCardProps { ... }  // ← Ya existe en OrderCard/OrderCard.types.ts
+
+// ✅ CORRECTO — props solo en el archivo del componente
+// features/orders/components/OrderCard/OrderCard.types.ts
+export interface OrderCardProps { ... }
+```
+
+---
+
 ## Organización de tipos
 
 ### Tipos de dominio → `feature/types/feature.types.ts`

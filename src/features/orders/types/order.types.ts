@@ -11,8 +11,3 @@ export interface OrderDetailProps {
   onClose: () => void;
 }
 
-export interface OrderCardProps {
-  order: Order;
-  status?: OrderStatus;
-  onOpen: (order: Order) => void;
-}

@@ -1,5 +1,3 @@
-import type { Restaurant } from '@/types';
-
 export interface RestaurantFormData {
   name: string;
   slug: string;
@@ -30,8 +28,3 @@ export interface RestaurantFormData {
   adminPassword: string;
 }
 
-export interface RestaurantFormProps {
-  restaurant?: Restaurant;
-  onSuccess: () => void;
-  onCancel: () => void;
-}

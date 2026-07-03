@@ -206,7 +206,7 @@ function StatusRow({
         <span className="text-xs font-medium text-gray-400">{status.sortOrder}</span>
         <span
           className="h-4 w-4 rounded-full ring-2 ring-white ring-offset-1"
-          style={{ backgroundColor: status.color, ringColor: status.color }}
+          style={{ backgroundColor: status.color }}
         />
       </div>
 
