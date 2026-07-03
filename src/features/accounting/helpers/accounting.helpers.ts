@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx';
+
 import type { Order } from '@/types';
 import type { AccountingStats, DateRange } from '../types/accounting.types';
 
@@ -52,25 +54,19 @@ export function getPresetRange(preset: 'today' | 'week' | 'month'): DateRange {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
-export function exportToCSV(orders: Order[]): void {
-  const headers = ['Fecha', 'Pedido', 'Cliente', 'Teléfono', 'Método de pago', 'Items', 'Total'];
+export function exportToExcel(orders: Order[]): void {
+  const rows = orders.map((o) => ({
+    Fecha: new Date(o.createdAt).toLocaleString('es-CO'),
+    Pedido: o.orderNumber,
+    Cliente: o.customerName,
+    Teléfono: o.customerPhone,
+    'Método de pago': o.paymentMethod,
+    Items: o.items.length,
+    Total: o.total,
+  }));
 
-  const rows = orders.map((o) => [
-    new Date(o.createdAt).toLocaleString('es-CO'),
-    o.orderNumber,
-    o.customerName,
-    o.customerPhone,
-    o.paymentMethod,
-    o.items.length,
-    o.total,
-  ]);
-
-  const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+  XLSX.writeFile(wb, `pedidos-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

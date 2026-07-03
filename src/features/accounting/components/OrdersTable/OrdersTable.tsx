@@ -17,7 +17,7 @@ export function OrdersTable({ orders, statuses, onExport }: OrdersTableProps) {
         {orders.length > 0 && (
           <Button variant="secondary" size="sm" onClick={onExport}>
             <Download className="h-3.5 w-3.5" />
-            Exportar CSV
+            Exportar Excel
           </Button>
         )}
       </div>

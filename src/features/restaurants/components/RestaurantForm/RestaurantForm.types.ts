@@ -7,6 +7,8 @@ export interface RestaurantColorsPayload {
   bg: string;
   name: string;
   layout: 'cards' | 'list';
+  logo: string;
+  bannerImage: string;
 }
 
 export interface RestaurantFormProps {

@@ -31,7 +31,6 @@ const defaultValues: RestaurantFormData = {
   phone: '',
   logo: '',
   bannerImage: '',
-  headerType: 'text',
   primaryColor: '#FF6A1A',
   secondaryColor: '#1B1512',
   accentColor: '#FFE0CC',
@@ -49,6 +48,11 @@ const defaultValues: RestaurantFormData = {
   adminPassword: '',
 };
 
+function extractEmbedUrl(value: string): string {
+  const match = value.match(/src=["'\u201c\u201d]([^"'\u201c\u201d]+)["'\u201c\u201d]/);
+  return match ? match[1] : value;
+}
+
 export function useRestaurantForm(restaurant?: Restaurant) {
   const isEditing = !!restaurant;
 
@@ -62,7 +66,6 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       phone: restaurant.phone,
       logo: restaurant.logo,
       bannerImage: restaurant.bannerImage ?? '',
-      headerType: restaurant.headerType,
       primaryColor: restaurant.theme.primaryColor,
       secondaryColor: restaurant.theme.secondaryColor,
       accentColor: restaurant.theme.accentColor,
@@ -124,7 +127,6 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       phone: data.phone,
       logo: data.logo,
       ...(data.bannerImage ? { bannerImage: data.bannerImage } : {}),
-      headerType: data.headerType,
       theme: {
         primaryColor: data.primaryColor,
         secondaryColor: data.secondaryColor,
@@ -135,7 +137,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       ...(data.address ? { address: data.address } : {}),
       ...(data.city ? { city: data.city } : {}),
       ...(data.mapUrl ? { mapUrl: data.mapUrl } : {}),
-      ...(data.mapEmbed ? { mapEmbed: data.mapEmbed } : {}),
+      ...(data.mapEmbed ? { mapEmbed: extractEmbedUrl(data.mapEmbed) } : {}),
       ...(data.instagram ? { instagram: data.instagram } : {}),
       ...(data.facebook ? { facebook: data.facebook } : {}),
       menuLayout: data.menuLayout,
@@ -153,7 +155,6 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       phone: data.phone,
       logo: data.logo,
       ...(data.bannerImage ? { bannerImage: data.bannerImage } : {}),
-      headerType: data.headerType,
       theme: {
         primaryColor: data.primaryColor,
         secondaryColor: data.secondaryColor,
@@ -164,7 +165,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       ...(data.address ? { address: data.address } : {}),
       ...(data.city ? { city: data.city } : {}),
       ...(data.mapUrl ? { mapUrl: data.mapUrl } : {}),
-      ...(data.mapEmbed ? { mapEmbed: data.mapEmbed } : {}),
+      ...(data.mapEmbed ? { mapEmbed: extractEmbedUrl(data.mapEmbed) } : {}),
       ...(data.instagram ? { instagram: data.instagram } : {}),
       ...(data.facebook ? { facebook: data.facebook } : {}),
       menuLayout: data.menuLayout,

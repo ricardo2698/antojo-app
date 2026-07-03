@@ -6,7 +6,6 @@ export interface RestaurantFormData {
   phone: string;
   logo: string;
   bannerImage: string;
-  headerType: 'image' | 'text';
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;

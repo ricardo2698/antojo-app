@@ -22,8 +22,6 @@ export interface RestaurantTheme {
   bgColor: string;
 }
 
-export type HeaderType = 'image' | 'text';
-
 export interface Restaurant {
   id: string;
   slug: string;
@@ -33,7 +31,6 @@ export interface Restaurant {
   phone: string;
   logo: string;
   bannerImage?: string;
-  headerType: HeaderType;
   theme: RestaurantTheme;
   // Ubicación
   address?: string;

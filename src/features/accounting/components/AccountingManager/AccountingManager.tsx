@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth';
 import { useOrderStatuses } from '@/features/order-statuses/hooks/useOrderStatuses';
 import { cn } from '@/lib/utils';
 
-import { calculateStats, exportToCSV, getPresetRange } from '../../helpers/accounting.helpers';
+import { calculateStats, exportToExcel, getPresetRange } from '../../helpers/accounting.helpers';
 import { useAccountingOrders } from '../../hooks/useAccountingOrders';
 import type { DatePreset, DateRange } from '../../types/accounting.types';
 import { AccountingSummary } from '../AccountingSummary';
@@ -122,7 +122,7 @@ export function AccountingManager() {
           <OrdersTable
             orders={orders}
             statuses={statuses}
-            onExport={() => exportToCSV(orders)}
+            onExport={() => exportToExcel(orders)}
           />
         </div>
       )}

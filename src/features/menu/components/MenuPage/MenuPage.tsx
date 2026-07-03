@@ -65,46 +65,13 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
   return (
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sg, position: 'relative' }}>
 
-      {/* Top bar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 6,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 16px',
-        background: `color-mix(in srgb, ${bg} 82%, transparent)`,
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-      }}>
-        <button
-          onClick={() => setNavOpen(true)}
-          style={{ width: 40, height: 40, borderRadius: 12, border: 0, background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,.08)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
-        >
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={sec} strokeWidth="2.2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        </button>
-
-        <button
-          onClick={() => setCartOpen(true)}
-          style={{ position: 'relative', width: 40, height: 40, borderRadius: 12, border: 0, background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,.08)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
-        >
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={sec} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-            <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>
-          </svg>
-          {count > 0 && (
-            <span style={{
-              position: 'absolute', top: -4, right: -4,
-              minWidth: 18, height: 18, padding: '0 5px',
-              borderRadius: 999, background: pri, color: '#fff',
-              fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center',
-              fontFamily: sg,
-            }}>
-              {count}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Hero */}
-      <MenuHeader restaurant={restaurant} />
+      {/* Hero + floating top bar */}
+      <MenuHeader
+        restaurant={restaurant}
+        cartCount={count}
+        onNavOpen={() => setNavOpen(true)}
+        onCartOpen={() => setCartOpen(true)}
+      />
 
       {/* Layout: Tarjetas */}
       {layout === 'cards' && (
@@ -118,7 +85,7 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
               onSelect={setActiveCategoryId}
             />
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 16px 140px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 16px 24px' }}>
             {visibleProducts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0', color: '#9a8f86', fontFamily: sg }}>
                 Sin productos en esta categoría.
@@ -220,11 +187,11 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
       )}
 
       {/* Spacer para que el fixed bar no tape contenido */}
-      {count > 0 && <div style={{ height: 100 }} />}
+      {count > 0 && <div style={{ height: 120 }} />}
 
       {/* Ubicación */}
       {(restaurant.address || restaurant.mapEmbed) && (
-        <div style={{ padding: '40px 16px 24px', background: bg }}>
+        <div style={{ padding: '16px 16px 24px', background: bg }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>📍</div>
             <h2 style={{ fontFamily: sg, fontWeight: 800, fontSize: 26, color: sec, margin: '0 0 8px', letterSpacing: '-.02em' }}>
@@ -273,21 +240,27 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
               </a>
             )}
 
-            {/* Mapa embed */}
-            {restaurant.mapEmbed && (
+            {/* Mapa embed — soporta URL directa o iframe HTML completo */}
+            {restaurant.mapEmbed && (() => {
+              const raw = restaurant.mapEmbed;
+              const srcMatch = raw.match(/src=["']([^"']+)["']/);
+              const embedUrl = srcMatch ? srcMatch[1] : raw;
+              if (!embedUrl.includes('maps/embed')) return null;
+              return (
               <div style={{ borderRadius: 18, overflow: 'hidden', height: 240 }}>
                 <iframe
-                  src={restaurant.mapEmbed}
+                  src={embedUrl}
                   width="100%"
                   height="100%"
                   style={{ border: 0, display: 'block' }}
                   allowFullScreen
                   loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
+                  referrerPolicy="strict-origin-when-cross-origin"
                   title={`Ubicación ${restaurant.name}`}
                 />
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
@@ -302,7 +275,7 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {restaurant.instagram && (
               <a
-                href={`https://instagram.com/${restaurant.instagram.replace('@', '')}`}
+                href={restaurant.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -312,12 +285,12 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
                 }}
               >
                 <InstagramIcon />
-                {restaurant.instagram.startsWith('@') ? restaurant.instagram : `@${restaurant.instagram}`}
+                Instagram
               </a>
             )}
             {restaurant.facebook && (
               <a
-                href={restaurant.facebook.startsWith('http') ? restaurant.facebook : `https://facebook.com/${restaurant.facebook}`}
+                href={restaurant.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -327,7 +300,7 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
                 }}
               >
                 <FacebookIcon />
-                {restaurant.facebook}
+                Facebook
               </a>
             )}
           </div>
@@ -424,24 +397,24 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
                 <div style={{ height: 1, background: 'rgba(0,0,0,.07)', margin: '0 0 8px' }} />
                 {restaurant.instagram && (
                   <a
-                    href={`https://instagram.com/${restaurant.instagram.replace('@', '')}`}
+                    href={restaurant.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: sg, fontWeight: 600, fontSize: 14, color: pri, textDecoration: 'none', padding: '10px 12px', borderRadius: 12, background: `${pri}14` }}
                   >
                     <InstagramIcon />
-                    {restaurant.instagram.startsWith('@') ? restaurant.instagram : `@${restaurant.instagram}`}
+                    Instagram
                   </a>
                 )}
                 {restaurant.facebook && (
                   <a
-                    href={restaurant.facebook.startsWith('http') ? restaurant.facebook : `https://facebook.com/${restaurant.facebook}`}
+                    href={restaurant.facebook}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: sg, fontWeight: 600, fontSize: 14, color: sec, textDecoration: 'none', padding: '10px 12px', borderRadius: 12, background: `${sec}14` }}
                   >
                     <FacebookIcon />
-                    {restaurant.facebook}
+                    Facebook
                   </a>
                 )}
               </div>

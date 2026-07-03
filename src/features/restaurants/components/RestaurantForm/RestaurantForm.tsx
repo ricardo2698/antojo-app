@@ -123,8 +123,8 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
     useRestaurantForm(restaurant);
 
   useEffect(() => {
-    onColorsChange?.({ pri: data.primaryColor, sec: data.secondaryColor, acc: data.accentColor, bg: data.bgColor, name: data.name, layout: data.menuLayout });
-  }, [data.primaryColor, data.secondaryColor, data.accentColor, data.bgColor, data.name, data.menuLayout]); // eslint-disable-line react-hooks/exhaustive-deps
+    onColorsChange?.({ pri: data.primaryColor, sec: data.secondaryColor, acc: data.accentColor, bg: data.bgColor, name: data.name, layout: data.menuLayout, logo: data.logo, bannerImage: data.bannerImage });
+  }, [data.primaryColor, data.secondaryColor, data.accentColor, data.bgColor, data.name, data.menuLayout, data.logo, data.bannerImage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMutation = useCreateRestaurant();
   const updateMutation = useUpdateRestaurant();
@@ -227,38 +227,14 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
           />
           {errors.logo && <p className="text-xs text-red-600">{errors.logo}</p>}
 
-          {/* Header type */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Encabezado del menú público</p>
-            <div className="flex gap-4">
-              {(['text', 'image'] as const).map((type) => (
-                <label
-                  key={type}
-                  className="flex cursor-pointer items-center gap-2 text-sm text-gray-600"
-                >
-                  <input
-                    type="radio"
-                    value={type}
-                    checked={data.headerType === type}
-                    onChange={() => handleChange('headerType', type)}
-                    className="accent-orange-500"
-                    disabled={isPending}
-                  />
-                  {type === 'text' ? 'Solo texto / logo' : 'Imagen de banner'}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {data.headerType === 'image' && (
-            <ImageUpload
-              label="Imagen de banner"
-              value={data.bannerImage}
-              onChange={(url) => handleChange('bannerImage', url)}
-              disabled={isPending}
-              aspectRatio="wide"
-            />
-          )}
+          <ImageUpload
+            label="Foto de portada del menú (opcional)"
+            value={data.bannerImage}
+            onChange={(url) => handleChange('bannerImage', url)}
+            disabled={isPending}
+            aspectRatio="wide"
+          />
+          <p className="text-xs text-gray-400">Se muestra como header del menú público. Si no subís foto, se usa el color de tu marca.</p>
         </section>
 
         {/* Sección: Formato del menú */}
@@ -364,9 +340,13 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
           <Input
             label="URL embed del mapa"
             value={data.mapEmbed}
-            onChange={(e) => handleChange('mapEmbed', e.target.value)}
-            placeholder="https://maps.google.com/maps?q=...&output=embed"
-            hint="En Google Maps: Compartir → Insertar mapa → copiar la URL del src del iframe"
+            onChange={(e) => {
+              const val = e.target.value;
+              const srcMatch = val.match(/src=["'\u201c\u201d]([^"'\u201c\u201d]+)["'\u201c\u201d]/);
+              handleChange('mapEmbed', srcMatch ? srcMatch[1] : val);
+            }}
+            placeholder="https://www.google.com/maps/embed?pb=..."
+            hint="Google Maps → Compartir → Insertar mapa → podés pegar el iframe completo o solo la URL del src"
             disabled={isPending}
           />
         </section>
@@ -376,21 +356,21 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
             Redes sociales
           </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-4">
             <Input
               label="Instagram"
               value={data.instagram}
               onChange={(e) => handleChange('instagram', e.target.value)}
-              placeholder="@tu.restaurante"
-              hint="Solo el @handle, ej: @mangova.sm"
+              placeholder="https://instagram.com/tu.restaurante"
+              hint="URL completa del perfil de Instagram"
               disabled={isPending}
             />
             <Input
               label="Facebook"
               value={data.facebook}
               onChange={(e) => handleChange('facebook', e.target.value)}
-              placeholder="Nombre de tu página"
-              hint="Nombre de la página en Facebook"
+              placeholder="https://facebook.com/tu.restaurante"
+              hint="URL completa de la página de Facebook"
               disabled={isPending}
             />
           </div>

@@ -18,6 +18,8 @@ const DEFAULT_COLORS: RestaurantColorsPayload = {
   bg: '#FBF3E9',
   name: '',
   layout: 'cards',
+  logo: '',
+  bannerImage: '',
 };
 
 export default function EditarRestaurantePage() {

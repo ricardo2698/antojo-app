@@ -31,7 +31,7 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 16px 140px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 16px 24px' }}>
       {categories.map((cat) => {
         const catProducts = products.filter((p) => p.categoryId === cat.id && p.isActive);
         if (catProducts.length === 0) return null;

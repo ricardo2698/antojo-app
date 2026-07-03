@@ -10,6 +10,8 @@ interface MenuPreviewProps {
   bg: string;
   name: string;
   layout?: 'cards' | 'list';
+  logo?: string;
+  bannerImage?: string;
 }
 
 function CardsPreview({ pri, sec, acc }: { pri: string; sec: string; acc: string }) {
@@ -89,33 +91,60 @@ function ListPreview({ pri, sec }: { pri: string; sec: string }) {
   );
 }
 
-export function MenuPreview({ pri, sec, acc, bg, name, layout = 'cards' }: MenuPreviewProps) {
+export function MenuPreview({ pri, sec, acc, bg, name, layout = 'cards', logo, bannerImage }: MenuPreviewProps) {
   return (
     <div style={{ width: '100%', height: '100%', background: bg, fontFamily: sg, overflowY: 'auto', scrollbarWidth: 'none', position: 'relative' }}>
 
-      {/* top bar */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: `${bg}d0`, backdropFilter: 'blur(8px)' }}>
-        <div style={{ width: 34, height: 34, borderRadius: 10, background: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,.08)', display: 'grid', placeItems: 'center' }}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={sec} strokeWidth="2.2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        </div>
-        <div style={{ position: 'relative', width: 34, height: 34, borderRadius: 10, background: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,.08)', display: 'grid', placeItems: 'center' }}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={sec} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
-          <span style={{ position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 999, background: pri, color: '#fff', fontSize: 8, fontWeight: 700, display: 'grid', placeItems: 'center', fontFamily: sg }}>1</span>
-        </div>
-      </div>
+      {/* Cover + floating bar + hero card */}
+      <div style={{ position: 'relative' }}>
 
-      {/* hero */}
-      <div style={{ margin: '4px 12px 0', background: '#fff', borderRadius: 20, padding: '20px 16px 18px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 28px -16px rgba(0,0,0,.22)' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${pri}, ${acc})` }} />
-        <div style={{ position: 'absolute', left: '50%', top: 20, width: 120, height: 120, transform: 'translateX(-50%)', borderRadius: '50%', background: `radial-gradient(circle, ${acc}bb, transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#fff', boxShadow: '0 6px 18px -6px rgba(0,0,0,.2)', display: 'grid', placeItems: 'center', border: '1px solid #f0ece7', fontFamily: sg, fontWeight: 700, fontSize: 24, color: pri }}>
-            {name?.[0]?.toUpperCase() ?? 'R'}
+        {/* Cover */}
+        <div style={{
+          position: 'relative', height: 160, overflow: 'hidden',
+          background: `linear-gradient(135deg, color-mix(in srgb, ${pri} 70%, #000 6%), ${sec})`,
+        }}>
+          {bannerImage && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `url('${bannerImage}')`,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+            }} />
+          )}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            background: `linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 60%, color-mix(in srgb, ${bg} 92%, transparent) 100%)`,
+          }} />
+        </div>
+
+        {/* Floating buttons */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.22)', backdropFilter: 'blur(10px)', display: 'grid', placeItems: 'center' }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </div>
-          <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-.01em', color: sec, margin: '12px 0 0' }}>{name || 'Tu restaurante'}</div>
-          <div style={{ fontSize: 12, color: '#7a7269', margin: '5px 0 0' }}>Granizados · especialidades</div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10, fontFamily: sm, fontSize: 9, fontWeight: 700, color: pri, background: acc, borderRadius: 999, padding: '5px 12px' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: pri }} /> ABIERTO · 20 min
+          <div style={{ position: 'relative', width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.22)', backdropFilter: 'blur(10px)', display: 'grid', placeItems: 'center' }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+            <span style={{ position: 'absolute', top: -4, right: -4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 999, background: pri, color: '#fff', fontSize: 7, fontWeight: 700, display: 'grid', placeItems: 'center', border: '1px solid #fff' }}>1</span>
+          </div>
+        </div>
+
+        {/* Hero card */}
+        <div style={{ position: 'relative', zIndex: 5, margin: '-44px 10px 0', background: '#fff', borderRadius: 18, padding: '0 16px 16px', boxShadow: '0 14px 30px -16px rgba(0,0,0,.4)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ marginTop: -37, width: 74, height: 74, borderRadius: '50%', background: '#fff', padding: 4, boxShadow: '0 8px 20px -8px rgba(0,0,0,.28)', flexShrink: 0, position: 'relative', zIndex: 10 }}>
+              <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#fff', display: 'grid', placeItems: 'center', border: '1px solid #f2ede7' }}>
+                {logo ? (
+                  <img src={logo} alt={name} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
+                ) : (
+                  <span style={{ fontWeight: 700, fontSize: 22, color: pri, fontFamily: sg }}>{name?.[0]?.toUpperCase() ?? 'R'}</span>
+                )}
+              </div>
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-.01em', color: sec, margin: '9px 0 0' }}>{name || 'Tu restaurante'}</div>
+            <div style={{ fontSize: 11, color: '#7a7269', margin: '4px 0 0' }}>Granizados · especialidades</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10, fontFamily: sm, fontSize: 8, fontWeight: 700, color: pri, background: acc, borderRadius: 999, padding: '5px 10px' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: pri, display: 'inline-block' }} />
+              ABIERTO · 20 min
+            </div>
           </div>
         </div>
       </div>

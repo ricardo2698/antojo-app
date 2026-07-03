@@ -21,6 +21,8 @@ const DEFAULT_COLORS: RestaurantColorsPayload = {
   bg: '#FBF3E9',
   name: '',
   layout: 'cards',
+  logo: '',
+  bannerImage: '',
 };
 
 export default function ConfiguracionPage() {
@@ -43,69 +45,88 @@ export default function ConfiguracionPage() {
   if (!user?.restaurantId) return null;
 
   return (
-    <div style={{ fontFamily: sg }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div
-          style={{
-            fontFamily: sm,
-            fontSize: 10,
-            letterSpacing: '.1em',
-            color: '#9a8f86',
-            textTransform: 'uppercase',
-            marginBottom: 6,
-          }}
-        >
-          Configuración
-        </div>
-        <h1
-          style={{
-            fontWeight: 700,
-            fontSize: 22,
-            letterSpacing: '-.02em',
-            color: '#1B1512',
-            margin: 0,
-          }}
-        >
-          Tu restaurante
-        </h1>
-        <p style={{ fontSize: 13, color: '#9a8f86', margin: '3px 0 0' }}>
-          Editá el nombre, descripción, teléfono, logo y tema visual de tu menú.
-        </p>
-      </div>
-
-      {isLoading ? (
-        <div
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240 }}
-        >
-          <span
+    <div
+      style={{
+        fontFamily: sg,
+        display: 'flex',
+        height: 'calc(100vh - 64px)',
+        gap: 32,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Left column — scrolls */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          paddingRight: 4,
+          paddingBottom: 32,
+        }}
+      >
+        {/* Header */}
+        <div style={{ marginBottom: 12 }}>
+          <div
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              border: '4px solid #FF6A1A',
-              borderTopColor: 'transparent',
-              display: 'block',
-              animation: 'spin 0.7s linear infinite',
+              fontFamily: sm,
+              fontSize: 10,
+              letterSpacing: '.1em',
+              color: '#9a8f86',
+              textTransform: 'uppercase',
+              marginBottom: 6,
             }}
-          />
+          >
+            Configuración
+          </div>
+          <h1
+            style={{
+              fontWeight: 700,
+              fontSize: 22,
+              letterSpacing: '-.02em',
+              color: '#1B1512',
+              margin: 0,
+            }}
+          >
+            Tu restaurante
+          </h1>
+          <p style={{ fontSize: 13, color: '#9a8f86', margin: '3px 0 0' }}>
+            Editá el nombre, descripción, teléfono, logo y tema visual de tu menú.
+          </p>
         </div>
-      ) : !restaurant ? (
-        <div
-          style={{
-            borderRadius: 18,
-            border: '1px solid #EFE7DF',
-            background: '#fff',
-            padding: 32,
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ fontSize: 14, color: '#9a8f86' }}>Restaurante no encontrado.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
-          {/* Form column */}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {isLoading ? (
+          <div
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240 }}
+          >
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                border: '4px solid #FF6A1A',
+                borderTopColor: 'transparent',
+                display: 'block',
+                animation: 'spin 0.7s linear infinite',
+              }}
+            />
+          </div>
+        ) : !restaurant ? (
+          <div
+            style={{
+              borderRadius: 18,
+              border: '1px solid #EFE7DF',
+              background: '#fff',
+              padding: 32,
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ fontSize: 14, color: '#9a8f86' }}>Restaurante no encontrado.</p>
+          </div>
+        ) : (
+          <>
             {/* Link del menú */}
             <div
               style={{
@@ -113,6 +134,7 @@ export default function ConfiguracionPage() {
                 border: '1px solid #EFE7DF',
                 background: '#fff',
                 padding: '16px 20px',
+                flexShrink: 0,
               }}
             >
               <div
@@ -176,7 +198,6 @@ export default function ConfiguracionPage() {
                     textDecoration: 'none',
                     flexShrink: 0,
                     cursor: 'pointer',
-                    transition: 'background .12s',
                   }}
                 >
                   <ExternalLink size={14} />
@@ -207,12 +228,14 @@ export default function ConfiguracionPage() {
               </div>
             </div>
 
+            {/* Form */}
             <div
               style={{
                 overflow: 'hidden',
                 borderRadius: 18,
                 border: '1px solid #EFE7DF',
                 background: '#fff',
+                flexShrink: 0,
               }}
             >
               <RestaurantForm
@@ -222,54 +245,69 @@ export default function ConfiguracionPage() {
                 onColorsChange={setColors}
               />
             </div>
-          </div>
+          </>
+        )}
+      </div>
 
-          {/* Live preview */}
-          <div
+      {/* Right column — always fixed */}
+      <div
+        style={{
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 14,
+          alignSelf: 'flex-start',
+          paddingTop: 4,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: sg,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '.08em',
+            color: '#9a8f86',
+            textTransform: 'uppercase',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <span
             style={{
-              flexShrink: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 14,
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#FF6A1A',
+              display: 'inline-block',
             }}
-          >
-            <div
-              style={{
-                fontFamily: sg,
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '.08em',
-                color: '#9a8f86',
-                textTransform: 'uppercase',
-                marginTop: 200,
-              }}
-            >
-              Vista previa del menú
-            </div>
-            <div
-              style={{
-                width: 300,
-                height: 620,
-                borderRadius: 40,
-                border: '8px solid #1B1512',
-                overflow: 'hidden',
-                boxShadow: '0 30px 60px -20px rgba(0,0,0,.35)',
-                background: '#fff',
-              }}
-            >
-              <MenuPreview
-                pri={colors.pri}
-                sec={colors.sec}
-                acc={colors.acc}
-                bg={colors.bg}
-                name={colors.name}
-                layout={colors.layout}
-              />
-            </div>
-          </div>
+          />
+          Vista previa del menú
         </div>
-      )}
+        <div
+          style={{
+            width: 300,
+            height: 620,
+            borderRadius: 40,
+            border: '8px solid #1B1512',
+            overflow: 'hidden',
+            boxShadow: '0 30px 60px -20px rgba(0,0,0,.35)',
+            background: '#fff',
+          }}
+        >
+          <MenuPreview
+            pri={colors.pri}
+            sec={colors.sec}
+            acc={colors.acc}
+            bg={colors.bg}
+            name={colors.name}
+            layout={colors.layout}
+            logo={colors.logo}
+            bannerImage={colors.bannerImage}
+          />
+        </div>
+      </div>
     </div>
   );
 }
