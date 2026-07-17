@@ -22,26 +22,14 @@ const MODULES = [
     ),
   },
   {
-    href: ROUTES.dashboard.productos,
-    label: 'Productos',
-    desc: 'Creá y gestioná el menú',
+    href: ROUTES.dashboard.menu,
+    label: 'Menú',
+    desc: 'Productos, categorías y adicionales',
     iconBg: 'linear-gradient(135deg, #FBB03B, #F59211)',
     iconShadow: 'rgba(245,146,17,.5)',
     icon: (
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.3 7 12 12l8.7-5M12 22V12" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.categorias,
-    label: 'Categorías',
-    desc: 'Organizá el menú por secciones',
-    iconBg: 'linear-gradient(135deg, #3a2417, #1B1512)',
-    iconShadow: 'rgba(27,21,18,.5)',
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FF8A3D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20.6 13.4 12 22l-9-9V4a1 1 0 0 1 1-1h9zM7 7h.01" />
+        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4" />
       </svg>
     ),
   },

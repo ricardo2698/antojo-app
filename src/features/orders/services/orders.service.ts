@@ -67,4 +67,15 @@ export const ordersService = {
       updatedAt: new Date().toISOString(),
     });
   },
+
+  async updateDriver(
+    restaurantId: string,
+    orderId: string,
+    driver: { id: string; name: string; code: string; phone: string } | null,
+  ): Promise<void> {
+    await updateDoc(doc(ordersRef(restaurantId), orderId), {
+      assignedDriver: driver ?? null,
+      updatedAt: new Date().toISOString(),
+    });
+  },
 };

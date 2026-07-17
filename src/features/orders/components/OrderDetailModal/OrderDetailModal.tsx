@@ -35,6 +35,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export function OrderDetailModal({
   order,
   statuses,
+  products,
   restaurantId,
   isOpen,
   onClose,
@@ -190,17 +191,43 @@ export function OrderDetailModal({
                     borderBottom: i < order.items.length - 1 ? '1px solid #F0EBE6' : 'none',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1B1512' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          width: 20, height: 20, borderRadius: 6, background: '#FF6A1A',
-                          color: '#fff', fontSize: 11, fontWeight: 700, marginRight: 7, flexShrink: 0,
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    {/* Thumbnail */}
+                    {(() => {
+                      const img = item.productImage ?? products.find((p) => p.id === item.productId)?.image;
+                      return (
+                        <div style={{
+                          width: 56, height: 56, borderRadius: 10, flexShrink: 0,
+                          background: '#fff', border: '1px solid #e5e7eb',
+                          display: 'grid', placeItems: 'center',
                         }}>
-                          {item.quantity}
-                        </span>
-                        {item.productName}
+                          {img ? (
+                            <img src={img} alt={item.productName} width={44} height={44} style={{ objectFit: 'contain' }} />
+                          ) : (
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#C8BFBB" strokeWidth="1.5" strokeLinecap="round">
+                              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                            </svg>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#1B1512' }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 20, height: 20, borderRadius: 6, background: '#FF6A1A',
+                            color: '#fff', fontSize: 11, fontWeight: 700, marginRight: 7, flexShrink: 0,
+                          }}>
+                            {item.quantity}
+                          </span>
+                          {item.productName}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#1B1512', flexShrink: 0 }}>
+                          {formatCurrency(item.subtotal)}
+                        </div>
                       </div>
                       {item.additionals.length > 0 && (
                         <div style={{ marginTop: 4, fontSize: 12, color: '#9a8f86', paddingLeft: 27 }}>
@@ -212,9 +239,6 @@ export function OrderDetailModal({
                           &ldquo;{item.specialInstructions}&rdquo;
                         </div>
                       )}
-                    </div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1B1512', flexShrink: 0 }}>
-                      {formatCurrency(item.subtotal)}
                     </div>
                   </div>
                 </div>

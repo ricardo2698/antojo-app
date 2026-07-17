@@ -21,6 +21,8 @@ export interface RestaurantFormData {
   facebook: string;
   // Formato del menú
   menuLayout: 'cards' | 'list';
+  // Modo de domicilios
+  deliveryMode: 'manual' | 'zones';
   // Solo en creación
   adminName: string;
   adminEmail: string;

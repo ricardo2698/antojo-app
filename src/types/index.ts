@@ -1,6 +1,6 @@
 // ===== USUARIOS =====
 
-export type UserRole = 'super_admin' | 'restaurant_admin';
+export type UserRole = 'super_admin' | 'restaurant_admin' | 'restaurant_view';
 
 export interface AppUser {
   uid: string;
@@ -42,6 +42,8 @@ export interface Restaurant {
   facebook?: string;
   // Formato del menú público
   menuLayout?: 'cards' | 'list';
+  // Modo de domicilios
+  deliveryMode?: 'manual' | 'zones';
   adminUserId: string;
   isActive: boolean;
   createdAt: string;
@@ -149,6 +151,7 @@ export const BASE_ORDER_STATUSES: Omit<OrderStatus, 'id' | 'restaurantId' | 'cre
 export interface OrderItem {
   productId: string;
   productName: string;
+  productImage?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -175,13 +178,46 @@ export interface Order {
   notes?: string;
   internalNote?: string;
   location?: { lat: number; lng: number };
+  assignedDriver?: { id: string; name: string; code: string; phone: string };
   createdAt: string;
   updatedAt: string;
 }
+
+// ===== ZONAS DE DOMICILIO =====
+
+export interface DeliveryZone {
+  id: string;
+  restaurantId: string;
+  name: string;
+  price: number;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateDeliveryZoneData = Omit<DeliveryZone, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateDeliveryZoneData = Partial<Pick<DeliveryZone, 'name' | 'price' | 'isActive' | 'sortOrder'>>;
+
+// ===== DOMICILIARIOS =====
+
+export interface Domiciliario {
+  id: string;
+  restaurantId: string;
+  name: string;
+  code: string;
+  phone: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateDomiciliarioData = Omit<Domiciliario, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateDomiciliarioData = Partial<Pick<Domiciliario, 'name' | 'code' | 'phone' | 'isActive'>>;
 
 export type CreateOrderData = Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt'>;
 export type UpdateOrderData = Partial<Pick<Order,
   'statusId' | 'notes' | 'deliveryFee' | 'isPaid' | 'internalNote' |
   'items' | 'subtotal' | 'total' | 'customerName' | 'customerPhone' |
-  'customerAddress' | 'barrio' | 'deliveryType' | 'paymentMethod'
+  'customerAddress' | 'barrio' | 'deliveryType' | 'paymentMethod' | 'assignedDriver'
 >>;

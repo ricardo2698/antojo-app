@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Package } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
 import type { Category, Product } from '@/types';
@@ -69,11 +68,13 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
                 {catProducts.map((product) => (
                   <div
                     key={product.id}
+                    onClick={() => product.isAvailable && onSelect(product)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 13,
                       background: '#fff', borderRadius: 16, padding: '12px 14px',
                       boxShadow: '0 4px 14px -10px rgba(0,0,0,.3)',
                       opacity: product.isAvailable ? 1 : 0.55,
+                      cursor: product.isAvailable ? 'pointer' : 'default',
                     }}
                   >
                     {/* Image */}
@@ -87,8 +88,10 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
                           sizes="76px"
                         />
                       ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: '#f5f0eb' }}>
-                          <Package style={{ width: 28, height: 28, color: '#d0c8be' }} />
+                        <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: `${primaryColor}18` }}>
+                          <span style={{ fontFamily: sg, fontWeight: 800, fontSize: 20, color: primaryColor }}>
+                            {product.name[0]?.toUpperCase()}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -117,7 +120,7 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
 
                     {/* Add button */}
                     <button
-                      onClick={() => product.isAvailable && onSelect(product)}
+                      onClick={(e) => { e.stopPropagation(); product.isAvailable && onSelect(product); }}
                       disabled={!product.isAvailable}
                       style={{
                         width: 40, height: 40, flexShrink: 0,

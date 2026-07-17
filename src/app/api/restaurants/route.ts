@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase/admin';
 
 interface FirebaseAuthError {
   error?: {
@@ -72,5 +73,17 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Error al eliminar usuario' }, { status: 500 });
+  }
+}
+
+// PATCH: cambia la contraseña del admin del restaurante
+export async function PATCH(request: NextRequest) {
+  try {
+    const { uid, newPassword } = (await request.json()) as { uid: string; newPassword: string };
+    await adminAuth.updateUser(uid, { password: newPassword });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error interno del servidor';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

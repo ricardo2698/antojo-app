@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowRight, Clock, MapPin, MessageCircle, Pencil, Bike,
-  StickyNote, Check, XCircle,
+  StickyNote, Check, XCircle, Search,
 } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
@@ -28,7 +29,7 @@ function formatShortDate(isoString: string): string {
     ' · ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function OrderCard({ order, status, statuses, restaurantId, onOpen, onAdvance, onEdit }: OrderCardProps) {
+export function OrderCard({ order, status, statuses, restaurantId, domiciliarios, onOpen, onAdvance, onEdit }: OrderCardProps) {
   const isDomicilio = order.deliveryType === 'domicilio';
   const deliveryFee = order.deliveryFee ?? 0;
   const grandTotal = order.total + deliveryFee;
@@ -48,9 +49,32 @@ export function OrderCard({ order, status, statuses, restaurantId, onOpen, onAdv
   const [noteInput, setNoteInput] = useState(order.internalNote ?? '');
   const [savingNote, setSavingNote] = useState(false);
 
+  // — domiciliario —
+  const [driverOpen, setDriverOpen] = useState(false);
+  const [driverSearch, setDriverSearch] = useState('');
+  const [assigningDriver, setAssigningDriver] = useState(false);
+  const driverRef = useRef<HTMLDivElement>(null);
+  const driverBtnRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+
   useEffect(() => {
     if (!togglingPaid) setLocalIsPaid(order.isPaid ?? false);
   }, [order.isPaid, togglingPaid]);
+
+  useEffect(() => {
+    if (!driverOpen) return;
+    function handle(e: MouseEvent) {
+      if (
+        driverRef.current && !driverRef.current.contains(e.target as Node) &&
+        driverBtnRef.current && !driverBtnRef.current.contains(e.target as Node)
+      ) {
+        setDriverOpen(false);
+        setDriverSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [driverOpen]);
 
   useEffect(() => {
     if (!editingNote) setNoteInput(order.internalNote ?? '');
@@ -85,6 +109,16 @@ export function OrderCard({ order, status, statuses, restaurantId, onOpen, onAdv
       setLocalIsPaid(!next);
     } finally {
       setTogglingPaid(false);
+    }
+  }
+
+  async function handleAssignDriver(driver: { id: string; name: string; code: string; phone: string } | null) {
+    setDriverOpen(false);
+    setAssigningDriver(true);
+    try {
+      await ordersService.updateDriver(restaurantId, order.id, driver);
+    } finally {
+      setAssigningDriver(false);
     }
   }
 
@@ -298,6 +332,97 @@ export function OrderCard({ order, status, statuses, restaurantId, onOpen, onAdv
         )}
       </div>
 
+      {/* Domiciliario */}
+      {isDomicilio && (
+        <div className="mt-2 border-t border-gray-100 pt-2" onClick={(e) => e.stopPropagation()}>
+          {order.assignedDriver ? (
+            <div className="flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2">
+              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                <Bike className="h-3.5 w-3.5 text-indigo-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-indigo-900 leading-tight">{order.assignedDriver.name}</p>
+                <p className="text-[10px] text-indigo-500">{order.assignedDriver.code} · {order.assignedDriver.phone}</p>
+              </div>
+              <button
+                onClick={() => handleAssignDriver(null)}
+                disabled={assigningDriver}
+                className="flex-shrink-0 text-indigo-300 hover:text-indigo-500 transition-colors disabled:opacity-40"
+                title="Quitar domiciliario"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                ref={driverBtnRef}
+                onClick={() => {
+                  if (driverOpen) { setDriverOpen(false); setDriverSearch(''); return; }
+                  const rect = driverBtnRef.current?.getBoundingClientRect();
+                  if (rect) setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: Math.max(rect.width, 224) });
+                  setDriverOpen(true);
+                }}
+                disabled={assigningDriver || domiciliarios.length === 0}
+                className="flex items-center gap-2 text-xs text-gray-400 hover:text-indigo-500 transition-colors font-medium disabled:opacity-40 disabled:cursor-default"
+              >
+                <Bike className="h-3.5 w-3.5" />
+                {domiciliarios.length === 0 ? 'Sin domiciliarios configurados' : 'Asignar domiciliario'}
+              </button>
+              {driverOpen && typeof document !== 'undefined' && createPortal(
+                <div
+                  ref={driverRef}
+                  style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: 232, zIndex: 9999 }}
+                  className="rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden"
+                >
+                  {/* Buscador */}
+                  <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+                    <Search className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                    <input
+                      autoFocus
+                      type="text"
+                      value={driverSearch}
+                      onChange={(e) => setDriverSearch(e.target.value)}
+                      placeholder="Buscar domiciliario..."
+                      className="flex-1 text-xs outline-none placeholder-gray-300 text-gray-800 bg-transparent"
+                    />
+                    {driverSearch && (
+                      <button onClick={() => setDriverSearch('')} className="text-gray-300 hover:text-gray-500">
+                        <XCircle className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {/* Lista */}
+                  <div className="max-h-48 overflow-y-auto p-1.5">
+                    {domiciliarios
+                      .filter((d) => d.isActive && d.name.toLowerCase().includes(driverSearch.toLowerCase()))
+                      .map((d) => (
+                        <button
+                          key={d.id}
+                          onClick={() => { handleAssignDriver({ id: d.id, name: d.name, code: d.code, phone: d.phone }); setDriverSearch(''); }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left hover:bg-indigo-50 transition-colors"
+                        >
+                          <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                            <Bike className="h-3 w-3 text-indigo-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 truncate">{d.name}</p>
+                            <p className="text-[10px] text-gray-400">{d.code} · {d.phone}</p>
+                          </div>
+                        </button>
+                      ))}
+                    {domiciliarios.filter((d) => d.isActive && d.name.toLowerCase().includes(driverSearch.toLowerCase())).length === 0 && (
+                      <p className="py-4 text-center text-xs text-gray-400">Sin resultados</p>
+                    )}
+                  </div>
+                </div>,
+                document.body
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Avanzar estado */}
       {nextStatus && (
         <button
@@ -323,9 +448,9 @@ export function OrderCard({ order, status, statuses, restaurantId, onOpen, onAdv
       </a>
 
       {/* WhatsApp domiciliario */}
-      {isDomicilio && DELIVERY_PHONE && (
+      {isDomicilio && (order.assignedDriver || DELIVERY_PHONE) && (
         <a
-          href={`https://wa.me/${DELIVERY_PHONE.replace(/\D/g, '')}?text=${buildDomiciliarioMsg()}`}
+          href={`https://wa.me/${(order.assignedDriver?.phone ?? DELIVERY_PHONE).replace(/\D/g, '')}?text=${buildDomiciliarioMsg()}`}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -333,7 +458,7 @@ export function OrderCard({ order, status, statuses, restaurantId, onOpen, onAdv
           style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
         >
           <Bike className="h-4 w-4" />
-          Enviar a domiciliario
+          {order.assignedDriver ? `Enviar a ${order.assignedDriver.name}` : 'Enviar a domiciliario'}
         </a>
       )}
     </div>

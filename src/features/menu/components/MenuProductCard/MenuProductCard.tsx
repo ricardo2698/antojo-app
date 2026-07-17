@@ -29,12 +29,14 @@ export function MenuProductCard({ product, primaryColor, secondaryColor, accentC
 
   return (
     <div
+      onClick={() => isAvailable && onSelect(product)}
       style={{
         background: '#fff',
         borderRadius: 22,
         overflow: 'hidden',
         boxShadow: '0 8px 26px -18px rgba(0,0,0,.3)',
         opacity: isAvailable ? 1 : 0.7,
+        cursor: isAvailable ? 'pointer' : 'default',
       }}
     >
       {/* imagen */}
@@ -116,7 +118,7 @@ export function MenuProductCard({ product, primaryColor, secondaryColor, accentC
         )}
 
         <button
-          onClick={() => isAvailable && onSelect(product)}
+          onClick={(e) => { e.stopPropagation(); isAvailable && onSelect(product); }}
           disabled={!isAvailable}
           style={{
             width: '100%', border: 0, borderRadius: 999, padding: 15,

@@ -316,16 +316,23 @@ export function ManualOrderModal({
                 {cart.map((line) => {
                   const addPrice = line.selectedAdicionales.reduce((s, a) => s + a.price, 0);
                   return (
-                    <div key={line.product.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ flex: 1, fontSize: 12, color: '#1B1512', fontWeight: 500 }}>
-                        {line.product.name} <span style={{ color: '#9a8f86' }}>×{line.quantity}</span>
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#FF6A1A' }}>
-                        {formatCurrency((line.product.price + addPrice) * line.quantity)}
-                      </span>
-                      <button onClick={() => removeFromCart(line.product.id)} style={{ border: 0, background: 'none', cursor: 'pointer', padding: 2, display: 'grid', placeItems: 'center' }}>
-                        <Trash2 style={{ width: 13, height: 13, color: '#c9bdb5' }} />
-                      </button>
+                    <div key={line.product.id} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: 1, fontSize: 12, color: '#1B1512', fontWeight: 500 }}>
+                          {line.product.name} <span style={{ color: '#9a8f86' }}>×{line.quantity}</span>
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#FF6A1A' }}>
+                          {formatCurrency((line.product.price + addPrice) * line.quantity)}
+                        </span>
+                        <button onClick={() => removeFromCart(line.product.id)} style={{ border: 0, background: 'none', cursor: 'pointer', padding: 2, display: 'grid', placeItems: 'center' }}>
+                          <Trash2 style={{ width: 13, height: 13, color: '#c9bdb5' }} />
+                        </button>
+                      </div>
+                      {line.selectedAdicionales.length > 0 && (
+                        <span style={{ fontSize: 11, color: '#9a8f86' }}>
+                          {line.selectedAdicionales.map((a) => `+${a.name}`).join(' · ')}
+                        </span>
+                      )}
                     </div>
                   );
                 })}

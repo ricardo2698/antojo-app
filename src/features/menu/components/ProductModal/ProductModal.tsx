@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
@@ -23,12 +23,27 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
   const [selectedAdditionals, setSelectedAdditionals] = useState<Additional[]>([]);
   const [sinAdicionales, setSinAdicionales] = useState(true);
   const [instructions, setInstructions] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [closing, setClosing] = useState(false);
+
+  function close() {
+    setClosing(true);
+    setTimeout(() => { setClosing(false); onClose(); }, 280);
+  }
+
+  useEffect(() => {
+    setSelectedAdditionals([]);
+    setSinAdicionales(true);
+    setInstructions('');
+    setQuantity(1);
+  }, [product?.id]);
 
   if (!product) return null;
 
   const productAdicionales = adicionales.filter((a) => product.adicionalIds?.includes(a.id));
   const additionalsTotal = selectedAdditionals.reduce((acc, a) => acc + a.price, 0);
-  const grandTotal = product.price + additionalsTotal;
+  const unitTotal = product.price + additionalsTotal;
+  const grandTotal = unitTotal * quantity;
 
   function toggleAdditional(adicional: Adicional) {
     setSinAdicionales(false);
@@ -49,20 +64,28 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
     addItem({
       productId: product.id,
       productName: product.name,
-      quantity: 1,
+      ...(product.image ? { productImage: product.image } : {}),
+      quantity,
       unitPrice: product.price,
       additionals: selectedAdditionals,
       specialInstructions: instructions,
     });
-    onClose();
+    close();
   }
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <style>{`
+        @keyframes _fadeIn  { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes _fadeOut { from { opacity: 1 } to { opacity: 0 } }
+        @keyframes _slideUp   { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        @keyframes _slideDown { from { transform: translateY(0) } to { transform: translateY(100%) } }
+      `}</style>
+
       {/* Backdrop */}
       <div
-        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)' }}
-        onClick={onClose}
+        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', animation: `${closing ? '_fadeOut' : '_fadeIn'} .28s ease forwards` }}
+        onClick={close}
       />
 
       {/* Sheet */}
@@ -72,14 +95,15 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
         background: '#fff', borderRadius: '24px 24px 0 0',
         overflow: 'hidden',
         boxShadow: '0 -8px 40px rgba(0,0,0,.18)',
+        animation: `${closing ? '_slideDown .28s cubic-bezier(.32,.72,0,1) forwards' : '_slideUp .3s cubic-bezier(.32,.72,0,1)'}`,
       }}>
         {/* Image header */}
-        <div style={{ position: 'relative', height: 220, flexShrink: 0, background: '#f0ece7' }}>
+        <div style={{ position: 'relative', height: 240, flexShrink: 0, background: '#fff' }}>
           {product.image ? (
             <img
               src={product.image}
               alt={product.name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '12px' }}
             />
           ) : (
             <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
@@ -89,29 +113,13 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
             </div>
           )}
 
-          {/* Gradient overlay */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.1) 55%, transparent 100%)',
-          }} />
-
-          {/* Name + price overlay */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 20px' }}>
-            <div style={{ fontFamily: sg, fontWeight: 800, fontSize: 18, color: '#fff', letterSpacing: '-.01em', textTransform: 'uppercase' }}>
-              {product.name}
-            </div>
-            <div style={{ fontFamily: sg, fontSize: 13, color: 'rgba(255,255,255,.8)', marginTop: 2 }}>
-              Base: {formatCurrency(product.price)}
-            </div>
-          </div>
-
           {/* Close button */}
           <button
-            onClick={onClose}
+            onClick={close}
             style={{
               position: 'absolute', top: 14, right: 14,
               width: 32, height: 32, borderRadius: '50%',
-              background: 'rgba(0,0,0,.45)', border: 'none',
+              background: 'rgba(0,0,0,.35)', border: 'none',
               display: 'grid', placeItems: 'center', cursor: 'pointer',
             }}
           >
@@ -121,6 +129,23 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
+
+          {/* Name + price + description */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+              <h2 style={{ fontFamily: sg, fontWeight: 800, fontSize: 20, color: '#1B1512', letterSpacing: '-.02em', margin: 0, flex: 1 }}>
+                {product.name}
+              </h2>
+              <span style={{ fontFamily: sg, fontWeight: 800, fontSize: 18, color: primaryColor, flexShrink: 0 }}>
+                {formatCurrency(product.price)}
+              </span>
+            </div>
+            {product.description && (
+              <p style={{ fontFamily: sg, fontSize: 14, lineHeight: 1.6, color: '#6b7280', margin: 0 }}>
+                {product.description}
+              </p>
+            )}
+          </div>
 
           {/* Adicionales section */}
           {productAdicionales.length > 0 && (
@@ -244,20 +269,32 @@ export function ProductModal({ product, adicionales, primaryColor, onClose }: Pr
         </div>
 
         {/* Footer */}
-        <div style={{ flexShrink: 0, padding: '12px 16px 20px', borderTop: '1px solid #f3f4f6', background: '#fff' }}>
+        <div style={{ flexShrink: 0, padding: '12px 16px 20px', borderTop: '1px solid #f3f4f6', background: '#fff', display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Quantity selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', flexShrink: 0 }}>
+            <button
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              style={{ width: 38, height: 48, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: sg, fontWeight: 700, fontSize: 18, color: '#374151', display: 'grid', placeItems: 'center' }}
+            >−</button>
+            <span style={{ minWidth: 28, textAlign: 'center', fontFamily: sg, fontWeight: 700, fontSize: 15, color: '#1B1512' }}>{quantity}</span>
+            <button
+              onClick={() => setQuantity((q) => q + 1)}
+              style={{ width: 38, height: 48, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: sg, fontWeight: 700, fontSize: 18, color: primaryColor, display: 'grid', placeItems: 'center' }}
+            >+</button>
+          </div>
+
+          {/* Add button */}
           <button
             onClick={handleAdd}
             style={{
-              width: '100%', padding: '15px 18px', borderRadius: 14, border: 'none',
+              flex: 1, padding: '14px 12px', borderRadius: 12, border: 'none',
               background: primaryColor, color: '#fff', cursor: 'pointer',
-              fontFamily: sg, fontWeight: 700, fontSize: 15,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              fontFamily: sg, fontWeight: 700, fontSize: 14,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
-            </svg>
-            Agregar al pedido
+            <span>Agregar al pedido</span>
+            <span>{formatCurrency(grandTotal)}</span>
           </button>
         </div>
       </div>

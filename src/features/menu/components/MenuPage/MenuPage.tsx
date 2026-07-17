@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { cartItemCount, cartTotal, useCartStore } from '@/store/cart.store';
 import { formatCurrency } from '@/lib/utils';
-import type { Adicional, Category, Product, Restaurant } from '@/types';
+import type { Adicional, Category, DeliveryZone, Product, Restaurant } from '@/types';
 
 import { CartDrawer } from '../CartDrawer';
 import { CategoryTabs } from '../CategoryTabs';
@@ -35,12 +35,14 @@ interface MenuPageProps {
   products: Product[];
   adicionales: Adicional[];
   receivedStatusId: string;
+  deliveryZones: DeliveryZone[];
+  deliveryMode: 'manual' | 'zones';
 }
 
 const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
 const sm = "var(--font-space-mono, monospace)";
 
-export function MenuPage({ restaurant, categories, products, adicionales, receivedStatusId }: MenuPageProps) {
+export function MenuPage({ restaurant, categories, products, adicionales, receivedStatusId, deliveryZones, deliveryMode }: MenuPageProps) {
   const initCart = useCartStore((s) => s.initCart);
   const setCartOpen = useCartStore((s) => s.setCartOpen);
   const items = useCartStore((s) => s.items);
@@ -50,6 +52,7 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
   const [activeCategoryId, setActiveCategoryId] = useState(categories[0]?.id ?? '');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isNavOpen, setNavOpen] = useState(false);
+  const [stickyVisible, setStickyVisible] = useState(false);
 
   const { primaryColor: pri, secondaryColor: sec, accentColor: acc, bgColor } = restaurant.theme;
   const bg = bgColor ?? '#FBF8F5';
@@ -58,12 +61,19 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
     initCart(restaurant.id, restaurant.phone, restaurant.name);
   }, [restaurant.id, restaurant.phone, restaurant.name, initCart]);
 
+  useEffect(() => {
+    const onScroll = () => setStickyVisible(window.scrollY > 180);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const layout = restaurant.menuLayout ?? 'cards';
   const visibleProducts = products.filter((p) => p.categoryId === activeCategoryId && p.isActive);
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   return (
-    <div style={{ minHeight: '100vh', background: bg, fontFamily: sg, position: 'relative' }}>
+    <div style={{ minHeight: '100vh', background: '#e8e3dd', fontFamily: sg }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: bg, position: 'relative', boxShadow: '0 0 60px rgba(0,0,0,.18)' }}>
 
       {/* Hero + floating top bar */}
       <MenuHeader
@@ -72,6 +82,62 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
         onNavOpen={() => setNavOpen(true)}
         onCartOpen={() => setCartOpen(true)}
       />
+
+      {/* Sticky top bar — aparece al hacer scroll */}
+      {stickyVisible && (
+        <div style={{
+          position: 'fixed', top: 0, zIndex: 40,
+          left: 'max(0px, calc(50vw - 240px))',
+          right: 'max(0px, calc(50vw - 240px))',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 14px',
+          background: bg,
+          borderBottom: `1px solid ${sec}18`,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}>
+          <button
+            onClick={() => setNavOpen(true)}
+            style={{
+              width: 40, height: 40, borderRadius: 12, cursor: 'pointer',
+              border: `1px solid ${sec}22`, background: `${sec}0e`,
+              display: 'grid', placeItems: 'center',
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={sec} strokeWidth="2.2" strokeLinecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => setCartOpen(true)}
+            style={{
+              position: 'relative', width: 40, height: 40, borderRadius: 12, cursor: 'pointer',
+              border: `1px solid ${sec}22`, background: `${sec}0e`,
+              display: 'grid', placeItems: 'center',
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={sec} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+            </svg>
+            {count > 0 && (
+              <span style={{
+                position: 'absolute', top: -5, right: -5,
+                minWidth: 18, height: 18, padding: '0 4px', borderRadius: 999,
+                background: pri, color: '#fff', fontSize: 10, fontWeight: 700,
+                display: 'grid', placeItems: 'center', fontFamily: sg,
+                border: '1.5px solid #fff',
+              }}>
+                {count}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Anchor para nav */}
+      <div id="menu" />
 
       {/* Layout: Tarjetas */}
       {layout === 'cards' && (
@@ -121,7 +187,9 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
       {/* Fixed bottom cart bar */}
       {count > 0 && (
         <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
+          position: 'fixed', bottom: 0, zIndex: 30,
+          left: 'max(0px, calc(50vw - 240px))',
+          right: 'max(0px, calc(50vw - 240px))',
           padding: '0 12px 12px',
         }}><div style={{
           borderRadius: 16,
@@ -191,7 +259,7 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
 
       {/* Ubicación */}
       {(restaurant.address || restaurant.mapEmbed) && (
-        <div style={{ padding: '16px 16px 24px', background: bg }}>
+        <div id="ubicacion" style={{ padding: '16px 16px 24px', background: bg }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>📍</div>
             <h2 style={{ fontFamily: sg, fontWeight: 800, fontSize: 26, color: sec, margin: '0 0 8px', letterSpacing: '-.02em' }}>
@@ -372,14 +440,24 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
             {/* Links */}
             <nav style={{ display: 'flex', flexDirection: 'column', padding: '16px 12px', gap: 4 }}>
               {[
-                { label: 'Inicio', href: '#' },
-                { label: 'Menú', href: '#menu' },
-                ...(restaurant.address || restaurant.mapEmbed ? [{ label: 'Ubicación', href: '#ubicacion' }] : []),
-              ].map(({ label, href }) => (
+                { label: 'Inicio', target: null },
+                { label: 'Menú', target: 'menu' },
+                ...(restaurant.address || restaurant.mapEmbed ? [{ label: 'Ubicación', target: 'ubicacion' }] : []),
+              ].map(({ label, target }) => (
                 <a
                   key={label}
-                  href={href}
-                  onClick={() => setNavOpen(false)}
+                  href={target ? `#${target}` : '#'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setNavOpen(false);
+                    requestAnimationFrame(() => {
+                      if (target) {
+                        document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    });
+                  }}
                   style={{
                     fontFamily: sg, fontWeight: 600, fontSize: 17, color: sec,
                     textDecoration: 'none', padding: '14px 12px', borderRadius: 12,
@@ -425,7 +503,8 @@ export function MenuPage({ restaurant, categories, products, adicionales, receiv
 
       {/* Modales */}
       <ProductModal product={selectedProduct} adicionales={adicionales} primaryColor={pri} onClose={() => setSelectedProduct(null)} />
-      <CartDrawer primaryColor={pri} secondaryColor={sec} receivedStatusId={receivedStatusId} />
+      <CartDrawer primaryColor={pri} secondaryColor={sec} receivedStatusId={receivedStatusId} deliveryZones={deliveryZones} deliveryMode={deliveryMode} />
+    </div>
     </div>
   );
 }

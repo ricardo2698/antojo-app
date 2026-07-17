@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Minus, Plus, Trash2, Truck, Store, CreditCard, Banknote, User } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
@@ -8,16 +8,166 @@ import { cartItemCount, cartTotal, useCartStore } from '@/store/cart.store';
 import { buildWhatsAppMessage, openWhatsApp } from '../../helpers/whatsapp.helpers';
 import type { DeliveryType, PaymentMethod } from '../../helpers/whatsapp.helpers';
 import { ordersService } from '@/features/orders/services/orders.service';
+import type { DeliveryZone } from '@/types';
 
 const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+
+interface ZoneDropdownProps {
+  zones: DeliveryZone[];
+  value: string;
+  onChange: (id: string) => void;
+  hasError: boolean;
+  secondaryColor: string;
+}
+
+function ZoneDropdown({ zones, value, onChange, hasError, secondaryColor }: ZoneDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = zones.find((z) => z.id === value) ?? null;
+  const filtered = zones.filter((z) => z.name.toLowerCase().includes(search.toLowerCase()));
+
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 12px',
+          borderRadius: 12,
+          border: `1.5px solid ${hasError ? '#fca5a5' : open ? secondaryColor : '#e5e7eb'}`,
+          background: hasError ? '#fef2f2' : '#fff',
+          fontFamily: sg,
+          fontSize: 13,
+          cursor: 'pointer',
+          transition: 'border-color .12s',
+          boxSizing: 'border-box',
+        }}
+      >
+        {selected ? (
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 8 }}>
+            <span style={{ fontWeight: 700, color: '#1B1512' }}>{selected.name}</span>
+            <span style={{ fontWeight: 800, color: secondaryColor }}>{formatCurrency(selected.price)}</span>
+          </span>
+        ) : (
+          <span style={{ color: '#9a8f86' }}>Elegí tu zona / barrio</span>
+        )}
+        <svg
+          viewBox="0 0 24 24" width="16" height="16" fill="none"
+          stroke="#9a8f86" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            right: 0,
+            background: '#fff',
+            border: `1.5px solid #e5e7eb`,
+            borderRadius: 14,
+            boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+            zIndex: 50,
+          }}
+        >
+          {/* Buscador */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid #f3f4f6' }}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#9a8f86" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar barrio..."
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, fontFamily: sg, color: '#1B1512', background: 'transparent' }}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#9a8f86', display: 'grid', placeItems: 'center' }}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Lista */}
+          <div style={{ maxHeight: 200, overflowY: 'auto', padding: '6px' }}>
+            {filtered.length === 0 ? (
+              <p style={{ textAlign: 'center', padding: '16px 0', fontSize: 13, color: '#9a8f86', fontFamily: sg }}>Sin resultados</p>
+            ) : filtered.map((zone) => {
+              const sel = zone.id === value;
+              return (
+                <button
+                  key={zone.id}
+                  type="button"
+                  onClick={() => { onChange(zone.id); setOpen(false); setSearch(''); }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '9px 12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: sel ? `${secondaryColor}14` : 'transparent',
+                    cursor: 'pointer',
+                    fontFamily: sg,
+                    transition: 'background .1s',
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: sel ? 700 : 500, color: sel ? secondaryColor : '#1B1512' }}>
+                    {zone.name}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: sel ? secondaryColor : '#6b7280' }}>
+                    {formatCurrency(zone.price)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {hasError && (
+        <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>
+          Elegí tu zona de domicilio
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface CartDrawerProps {
   primaryColor: string;
   secondaryColor: string;
   receivedStatusId: string;
+  deliveryZones: DeliveryZone[];
+  deliveryMode: 'manual' | 'zones';
 }
 
-export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: CartDrawerProps) {
+export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId, deliveryZones, deliveryMode }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
   const isCartOpen = useCartStore((s) => s.isCartOpen);
   const setCartOpen = useCartStore((s) => s.setCartOpen);
@@ -38,9 +188,17 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [barrio, setBarrio] = useState('');
+  const [selectedZoneId, setSelectedZoneId] = useState('');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const isZonesMode = deliveryMode === 'zones';
+  const selectedZone = isZonesMode
+    ? deliveryZones.find((z) => z.id === selectedZoneId) ?? null
+    : null;
+  const deliveryFee = selectedZone?.price ?? 0;
+  const orderTotal = isZonesMode && deliveryType === 'domicilio' ? total + deliveryFee : total;
 
   if (!isCartOpen) return null;
 
@@ -50,11 +208,22 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
     phone.trim() !== '' &&
     deliveryType !== '' &&
     paymentMethod !== '' &&
-    (deliveryType === 'recoger' || (address.trim() !== '' && barrio.trim() !== ''));
+    (deliveryType === 'recoger' || (
+      address.trim() !== '' &&
+      (isZonesMode ? selectedZoneId !== '' : barrio.trim() !== '')
+    ));
 
   async function handleConfirm() {
     setSubmitted(true);
     if (!canOrder || !restaurantId) return;
+
+    const effectiveBarrio = isZonesMode && selectedZone ? selectedZone.name : barrio;
+    const effectiveDeliveryFee =
+      isZonesMode && deliveryType === 'domicilio' && selectedZone ? selectedZone.price : undefined;
+    const effectiveTotal =
+      isZonesMode && deliveryType === 'domicilio' && selectedZone
+        ? total + selectedZone.price
+        : total;
 
     // Guardar pedido en Firestore
     try {
@@ -64,13 +233,15 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
         customerPhone: phone,
         deliveryType: deliveryType || undefined,
         ...(deliveryType === 'domicilio' && address ? { customerAddress: address } : {}),
-        ...(deliveryType === 'domicilio' && barrio ? { barrio } : {}),
+        ...(deliveryType === 'domicilio' && effectiveBarrio ? { barrio: effectiveBarrio } : {}),
+        ...(effectiveDeliveryFee !== undefined ? { deliveryFee: effectiveDeliveryFee } : {}),
         ...(location ? { location } : {}),
         paymentMethod,
         isPaid: false,
         items: items.map((item) => ({
           productId: item.productId,
           productName: item.productName,
+          ...(item.productImage ? { productImage: item.productImage } : {}),
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           subtotal: item.subtotal,
@@ -78,19 +249,19 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
           specialInstructions: item.observacion?.trim() || item.specialInstructions?.trim() || '',
         })),
         subtotal: total,
-        total,
+        total: effectiveTotal,
         statusId: receivedStatusId,
       });
     } catch (err) {
       console.error('[CartDrawer] Error al guardar pedido en Firestore:', err);
     }
 
-    const message = buildWhatsAppMessage(restaurantName, items, total, {
+    const message = buildWhatsAppMessage(restaurantName, items, effectiveTotal, {
       customerName: name,
       customerPhone: phone,
       deliveryType,
       address,
-      barrio,
+      barrio: effectiveBarrio,
       paymentMethod,
       location: location ?? undefined,
     });
@@ -100,6 +271,7 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
     setPhone('');
     setAddress('');
     setBarrio('');
+    setSelectedZoneId('');
     setDeliveryType('');
     setPaymentMethod('');
     setLocation(null);
@@ -480,24 +652,34 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
                         background: err(address) ? '#fef2f2' : '#fff',
                       }}
                     />
-                    <input
-                      type="text"
-                      value={barrio}
-                      onChange={(e) => setBarrio(e.target.value)}
-                      placeholder="Barrio o sector"
-                      style={{
-                        width: '100%',
-                        border: `1.5px solid ${err(barrio) ? '#fca5a5' : '#e5e7eb'}`,
-                        borderRadius: 12,
-                        padding: '10px 12px',
-                        fontSize: 13,
-                        fontFamily: sg,
-                        color: '#1B1512',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                        background: err(barrio) ? '#fef2f2' : '#fff',
-                      }}
-                    />
+                    {isZonesMode ? (
+                      <ZoneDropdown
+                        zones={deliveryZones}
+                        value={selectedZoneId}
+                        onChange={setSelectedZoneId}
+                        hasError={submitted && deliveryType === 'domicilio' && selectedZoneId === ''}
+                        secondaryColor={secondaryColor}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={barrio}
+                        onChange={(e) => setBarrio(e.target.value)}
+                        placeholder="Barrio o sector"
+                        style={{
+                          width: '100%',
+                          border: `1.5px solid ${err(barrio) ? '#fca5a5' : '#e5e7eb'}`,
+                          borderRadius: 12,
+                          padding: '10px 12px',
+                          fontSize: 13,
+                          fontFamily: sg,
+                          color: '#1B1512',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          background: err(barrio) ? '#fef2f2' : '#fff',
+                        }}
+                      />
+                    )}
 
                     {/* Compartir ubicación */}
                     <button
@@ -701,29 +883,43 @@ export function CartDrawer({ primaryColor, secondaryColor, receivedStatusId }: C
 
               {/* Subtotal */}
               <div style={{ background: '#f9fafb', borderRadius: 16, padding: '14px 16px' }}>
-                <div
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <span style={{ fontWeight: 800, fontSize: 15, color: '#1B1512' }}>Subtotal</span>
-                  <span style={{ fontWeight: 800, fontSize: 22, color: secondaryColor }}>
-                    {formatCurrency(total)}
-                  </span>
-                </div>
-                {deliveryType === 'domicilio' && (
-                  <p
-                    style={{
-                      marginTop: 10,
-                      fontSize: 12,
-                      color: '#92400e',
-                      background: '#fffbeb',
-                      border: '1px solid #fde68a',
-                      borderRadius: 10,
-                      padding: '8px 12px',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    📦 El valor del domicilio será informado por WhatsApp.
-                  </p>
+                {isZonesMode && deliveryType === 'domicilio' && selectedZone ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: '#6b7280' }}>Subtotal</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1B1512' }}>{formatCurrency(total)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: '#6b7280' }}>Domicilio ({selectedZone.name})</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1B1512' }}>{formatCurrency(selectedZone.price)}</span>
+                    </div>
+                    <div style={{ height: 1, background: '#e5e7eb' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: '#1B1512' }}>Total</span>
+                      <span style={{ fontWeight: 800, fontSize: 22, color: secondaryColor }}>
+                        {formatCurrency(orderTotal)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: '#1B1512' }}>Subtotal</span>
+                      <span style={{ fontWeight: 800, fontSize: 22, color: secondaryColor }}>
+                        {formatCurrency(total)}
+                      </span>
+                    </div>
+                    {deliveryType === 'domicilio' && !isZonesMode && (
+                      <p style={{ marginTop: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', lineHeight: 1.5 }}>
+                        📦 El valor del domicilio será informado por WhatsApp.
+                      </p>
+                    )}
+                    {deliveryType === 'domicilio' && isZonesMode && !selectedZone && (
+                      <p style={{ marginTop: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', lineHeight: 1.5 }}>
+                        📦 Elegí tu zona para ver el costo de domicilio.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

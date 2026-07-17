@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Trash2 } from 'lucide-react';
 
 import type { Restaurant } from '@/types';
+import { Modal } from '@/components/ui/Modal';
 
 import { useRestaurants } from '../../hooks/useRestaurants';
 import { useToggleRestaurantActive, useDeleteRestaurant } from '../../hooks/useRestaurantMutations';
@@ -22,6 +24,7 @@ export function RestaurantsManager() {
   const [search, setSearch] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const filtered = restaurants.filter(
     (r) =>
@@ -39,10 +42,15 @@ export function RestaurantsManager() {
     try { await toggleActive.mutateAsync({ id, isActive }); } finally { setTogglingId(null); }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
-    setDeletingId(id);
-    try { await deleteRestaurant.mutateAsync(id); } finally { setDeletingId(null); }
+  function handleDelete(id: string, name: string) {
+    setDeleteTarget({ id, name });
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
+    setDeleteTarget(null);
+    try { await deleteRestaurant.mutateAsync(deleteTarget.id); } finally { setDeletingId(null); }
   }
 
   if (isLoading) {
@@ -147,6 +155,40 @@ export function RestaurantsManager() {
         togglingId={togglingId}
         deletingId={deletingId}
       />
+
+      {/* Modal de confirmación de eliminación */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Eliminar restaurante"
+        description={`¿Estás seguro que querés eliminar "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
+        size="sm"
+      >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '20px 24px' }}>
+          <button
+            onClick={() => setDeleteTarget(null)}
+            style={{
+              fontFamily: sg, fontWeight: 600, fontSize: 14,
+              color: '#6b7280', background: '#f3f4f6',
+              border: 0, borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={confirmDelete}
+            style={{
+              fontFamily: sg, fontWeight: 600, fontSize: 14,
+              color: '#fff', background: '#EF4444',
+              border: 0, borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 7,
+            }}
+          >
+            <Trash2 size={15} />
+            Eliminar
+          </button>
+        </div>
+      </Modal>
 
     </div>
   );

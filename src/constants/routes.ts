@@ -10,12 +10,12 @@ export const ROUTES = {
   dashboard: {
     root: '/dashboard',
     pedidos: '/dashboard/pedidos',
-    productos: '/dashboard/productos',
-    categorias: '/dashboard/categorias',
+    menu: '/dashboard/menu',
     estados: '/dashboard/estados',
     contabilidad: '/dashboard/contabilidad',
-    adicionales: '/dashboard/adicionales',
     configuracion: '/dashboard/configuracion',
+    equipo: '/dashboard/equipo',
+    domicilios: '/dashboard/domicilios',
   },
   // Public menu
   menu: (slug: string) => `/${slug}`,

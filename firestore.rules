@@ -14,10 +14,22 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
     }
 
+    function getCallerData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function isRestaurantAdmin(restaurantId) {
-      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let user = getCallerData();
       return isAuthenticated()
         && user.role == 'restaurant_admin'
+        && user.restaurantId == restaurantId
+        && user.isActive == true;
+    }
+
+    function isRestaurantViewUser(restaurantId) {
+      let user = getCallerData();
+      return isAuthenticated()
+        && user.role == 'restaurant_view'
         && user.restaurantId == restaurantId
         && user.isActive == true;
     }
@@ -26,17 +38,38 @@ service cloud.firestore {
       return isSuperAdmin() || isRestaurantAdmin(restaurantId);
     }
 
+    function canAccessRestaurant(restaurantId) {
+      return isOwnerOrSuperAdmin(restaurantId) || isRestaurantViewUser(restaurantId);
+    }
+
     // ─── Users ─────────────────────────────────────────────────────────────────
 
     match /users/{userId} {
-      // Cada usuario solo puede leer su propio documento
-      // Super admin puede leer todos
-      allow read: if isAuthenticated()
-        && (request.auth.uid == userId || isSuperAdmin());
+      // Cada usuario puede leer su propio doc; super admin lee todos;
+      // restaurant_admin puede leer view users de su mismo restaurante
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId
+        || isSuperAdmin()
+        || (
+          getCallerData().role == 'restaurant_admin'
+          && resource.data.restaurantId == getCallerData().restaurantId
+          && resource.data.role == 'restaurant_view'
+        )
+      );
 
-      // Solo super admin puede crear/actualizar usuarios
-      // (la creación real va por API route — esto es fallback)
-      allow write: if isSuperAdmin();
+      // Super admin puede todo; restaurant_admin puede crear/actualizar/eliminar
+      // view users de su propio restaurante
+      allow create: if isSuperAdmin() || (
+        getCallerData().role == 'restaurant_admin'
+        && request.resource.data.restaurantId == getCallerData().restaurantId
+        && request.resource.data.role == 'restaurant_view'
+      );
+
+      allow update, delete: if isSuperAdmin() || (
+        getCallerData().role == 'restaurant_admin'
+        && resource.data.restaurantId == getCallerData().restaurantId
+        && resource.data.role == 'restaurant_view'
+      );
     }
 
     // ─── Restaurants ───────────────────────────────────────────────────────────
@@ -53,6 +86,7 @@ service cloud.firestore {
 
       match /orderStatuses/{statusId} {
         allow read: if true;
+        // Solo admin puede crear/modificar/eliminar estados
         allow write: if isOwnerOrSuperAdmin(restaurantId);
       }
 
@@ -79,13 +113,28 @@ service cloud.firestore {
         allow write: if isOwnerOrSuperAdmin(restaurantId);
       }
 
+      // ─── Delivery Zones ──────────────────────────────────────────────────────
+
+      match /deliveryZones/{zoneId} {
+        // El menú público necesita leer zonas para el checkout
+        allow read: if true;
+        allow write: if isOwnerOrSuperAdmin(restaurantId);
+      }
+
+      // ─── Domiciliarios ───────────────────────────────────────────────────────
+
+      match /domiciliarios/{domiciliarioId} {
+        allow read: if canAccessRestaurant(restaurantId);
+        allow write: if isOwnerOrSuperAdmin(restaurantId);
+      }
+
       // ─── Orders ──────────────────────────────────────────────────────────────
 
       match /orders/{orderId} {
         // Clientes pueden crear pedidos (checkout WhatsApp alternativo vía Firestore)
-        // El admin del restaurante puede leer y actualizar
+        // Admin y view users pueden leer y actualizar (cambiar estado)
         allow create: if true;
-        allow read, update: if isOwnerOrSuperAdmin(restaurantId);
+        allow read, update: if canAccessRestaurant(restaurantId);
         // Nadie elimina pedidos — solo se cambia el estado
         allow delete: if isSuperAdmin();
       }

@@ -1,0 +1,1 @@
+export { DomiciliariosManager } from './DomiciliariosManager';

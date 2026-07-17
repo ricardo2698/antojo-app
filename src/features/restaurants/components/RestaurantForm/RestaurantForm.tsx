@@ -305,6 +305,72 @@ export function RestaurantForm({ restaurant, onSuccess, onCancel, onColorsChange
           </div>
         </section>
 
+        {/* Sección: Modo de domicilios */}
+        <section>
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">Modo de domicilios</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {([
+              {
+                id: 'manual' as const,
+                name: 'Manual',
+                desc: 'El admin asigna el valor del domicilio desde gestión de pedidos',
+                icon: (
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                ),
+              },
+              {
+                id: 'zones' as const,
+                name: 'Por zonas',
+                desc: 'El cliente elige su barrio/sector y el precio se aplica automáticamente',
+                icon: (
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+                    <line x1="9" y1="3" x2="9" y2="18"/>
+                    <line x1="15" y1="6" x2="15" y2="21"/>
+                  </svg>
+                ),
+              },
+            ]).map((mode) => {
+              const sel = data.deliveryMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => handleChange('deliveryMode', mode.id)}
+                  disabled={isPending}
+                  style={{
+                    background: '#fff',
+                    border: sel ? '2px solid #FF6A1A' : '1.5px solid #ece6df',
+                    borderRadius: 14,
+                    padding: 14,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'border-color .12s',
+                  }}
+                >
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    height: 56, borderRadius: 10, marginBottom: 10,
+                    background: sel ? '#FFF3EA' : '#F6F1EB',
+                    color: sel ? '#FF6A1A' : '#9a8f86',
+                  }}>
+                    {mode.icon}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div>
+                      <div style={{ fontFamily: sg, fontWeight: 600, fontSize: 13, color: '#1B1512', lineHeight: 1.2 }}>{mode.name}</div>
+                      <div style={{ fontFamily: sg, fontSize: 11, color: '#8a7f76', marginTop: 3, lineHeight: 1.4 }}>{mode.desc}</div>
+                    </div>
+                    <span style={{ width: 18, height: 18, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 11, color: '#fff', background: '#FF6A1A', opacity: sel ? 1 : 0, flexShrink: 0 }}>✓</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         {/* Sección: Tema */}
         <PaletteSection data={data} handleChange={handleChange} isPending={isPending} />
 

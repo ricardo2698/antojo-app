@@ -133,7 +133,7 @@ export function MenuPreview({ pri, sec, acc, bg, name, layout = 'cards', logo, b
             <div style={{ marginTop: -37, width: 74, height: 74, borderRadius: '50%', background: '#fff', padding: 4, boxShadow: '0 8px 20px -8px rgba(0,0,0,.28)', flexShrink: 0, position: 'relative', zIndex: 10 }}>
               <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#fff', display: 'grid', placeItems: 'center', border: '1px solid #f2ede7' }}>
                 {logo ? (
-                  <img src={logo} alt={name} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
+                  <img src={logo} alt={name} style={{ width: '65%', height: '65%', objectFit: 'contain' }} />
                 ) : (
                   <span style={{ fontWeight: 700, fontSize: 22, color: pri, fontFamily: sg }}>{name?.[0]?.toUpperCase() ?? 'R'}</span>
                 )}

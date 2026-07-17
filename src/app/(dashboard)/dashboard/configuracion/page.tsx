@@ -249,11 +249,11 @@ export default function ConfiguracionPage() {
         )}
       </div>
 
-      {/* Right column — always fixed */}
+      {/* Right column — oculta en mobile */}
       <div
+        className="hidden md:flex"
         style={{
           flexShrink: 0,
-          display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 14,

@@ -43,6 +43,7 @@ const defaultValues: RestaurantFormData = {
   instagram: '',
   facebook: '',
   menuLayout: 'cards',
+  deliveryMode: 'manual',
   adminName: '',
   adminEmail: '',
   adminPassword: '',
@@ -78,6 +79,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       instagram: restaurant.instagram ?? '',
       facebook: restaurant.facebook ?? '',
       menuLayout: restaurant.menuLayout ?? 'cards',
+      deliveryMode: restaurant.deliveryMode ?? 'manual',
       adminName: '',
       adminEmail: '',
       adminPassword: '',
@@ -141,6 +143,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       ...(data.instagram ? { instagram: data.instagram } : {}),
       ...(data.facebook ? { facebook: data.facebook } : {}),
       menuLayout: data.menuLayout,
+      deliveryMode: data.deliveryMode,
       adminEmail: data.adminEmail,
       adminPassword: data.adminPassword,
       adminName: data.adminName,
@@ -169,6 +172,7 @@ export function useRestaurantForm(restaurant?: Restaurant) {
       ...(data.instagram ? { instagram: data.instagram } : {}),
       ...(data.facebook ? { facebook: data.facebook } : {}),
       menuLayout: data.menuLayout,
+      deliveryMode: data.deliveryMode,
     };
   }
 
