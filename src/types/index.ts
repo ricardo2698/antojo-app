@@ -1,6 +1,7 @@
 // ===== USUARIOS =====
 
-export type UserRole = 'super_admin' | 'restaurant_admin' | 'restaurant_view';
+// `restaurant_view` es el nombre anterior de `restaurant_employee`: se acepta hasta migrar (Fase 7).
+export type UserRole = 'super_admin' | 'restaurant_admin' | 'restaurant_employee' | 'restaurant_view';
 
 export interface AppUser {
   uid: string;
@@ -9,9 +10,36 @@ export interface AppUser {
   role: UserRole;
   restaurantId?: string;
   isActive: boolean;
+  // Solo empleados: permisos que le dio el admin (o fullAccess = todos los del plan)
+  grantedPermissions?: string[];
+  fullAccess?: boolean;
+  // Calculado SOLO en el servidor (src/lib/permissions/server.ts). Lo leen la UI y firestore.rules.
+  effectivePermissions?: string[];
   createdAt: string;
   updatedAt: string;
 }
+
+// ===== PLANES =====
+
+/** plans/{planId} — lo crea el super admin; cada restaurante tiene uno. */
+export interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  // COP (informativo por ahora; sin cobro en la plataforma)
+  price: number;
+  billingPeriod: 'monthly' | 'yearly';
+  // Claves del catálogo src/constants/permissions.ts (incluye features.*)
+  permissions: string[];
+  limits?: { maxEmployees?: number };
+  // Los planes inactivos no se ofrecen a restaurantes nuevos
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SavePlanData = Pick<Plan, 'name' | 'description' | 'price' | 'billingPeriod' | 'permissions' | 'isActive' | 'sortOrder' | 'limits'>;
 
 // ===== RESTAURANTE =====
 
@@ -20,6 +48,49 @@ export interface RestaurantTheme {
   secondaryColor: string;
   accentColor: string;
   bgColor: string;
+}
+
+export interface DaySchedule {
+  open: string;  // "09:00"
+  close: string; // "19:00"
+}
+
+// 0 = domingo, 1 = lunes, ..., 6 = sábado
+// null = cerrado ese día
+export type OpeningHours = {
+  [day: number]: DaySchedule | null | undefined;
+};
+
+export interface DeliveryMethodConfig {
+  isActive: boolean;
+  allowScheduled?: boolean;
+}
+
+export interface DeliveryMethods {
+  recoger?: DeliveryMethodConfig;
+  domicilio?: DeliveryMethodConfig;
+  mesa?: Pick<DeliveryMethodConfig, 'isActive'>;
+}
+
+// ===== MÉTODOS DE PAGO =====
+
+export type PaymentMethodType =
+  | 'efectivo'
+  | 'datafono'
+  | 'nequi'
+  | 'daviplata'
+  | 'breb'
+  | 'bancolombia'
+  | 'otro_banco';
+
+export interface PaymentMethodConfig {
+  id: string;
+  type: PaymentMethodType;
+  isActive: boolean;
+  // Número de celular, alias BreB o número de cuenta (según el tipo)
+  account?: string;
+  // Solo para 'otro_banco'
+  bankName?: string;
 }
 
 export interface Restaurant {
@@ -32,8 +103,11 @@ export interface Restaurant {
   logo: string;
   bannerImage?: string;
   theme: RestaurantTheme;
+  // Categoría (tipo de cocina)
+  category?: string;
   // Ubicación
   address?: string;
+  department?: string;
   city?: string;
   mapUrl?: string;
   mapEmbed?: string;
@@ -44,6 +118,20 @@ export interface Restaurant {
   menuLayout?: 'cards' | 'list';
   // Modo de domicilios
   deliveryMode?: 'manual' | 'zones';
+  // Horario de atención
+  openingHours?: OpeningHours;
+  // Si está cerrado, ¿se aceptan pedidos programados para cuando abra?
+  allowScheduledWhenClosed?: boolean;
+  // Métodos de entrega
+  deliveryMethods?: DeliveryMethods;
+  // Métodos de pago (efectivo, datáfono y cuentas para transferir)
+  paymentMethods?: PaymentMethodConfig[];
+  // Plan contratado (sin planId = restaurante anterior al sistema de planes: acceso completo)
+  planId?: string;
+  planName?: string;
+  planAssignedAt?: string;
+  // Funcionalidades del plan (features.*), copiadas por el servidor: el menú público las lee sin sesión
+  planFeatures?: string[];
   adminUserId: string;
   isActive: boolean;
   createdAt: string;
@@ -167,9 +255,18 @@ export interface Order {
   customerPhone: string;
   customerAddress?: string;
   barrio?: string;
-  deliveryType?: 'recoger' | 'domicilio';
+  deliveryType?: 'recoger' | 'domicilio' | 'mesa';
+  tableId?: string;
+  tableName?: string;
+  // Programación: false/ausente = inmediato. scheduledFor en ISO 8601
+  isScheduled?: boolean;
+  scheduledFor?: string;
   deliveryFee?: number;
+  // Etiqueta visible del método (ej: "Nequi"); Contabilidad agrupa por este valor
   paymentMethod: string;
+  paymentMethodType?: PaymentMethodType;
+  // Cuenta a la que el cliente transfirió (si aplica)
+  paymentAccount?: string;
   isPaid?: boolean;
   items: OrderItem[];
   subtotal: number;
@@ -178,10 +275,76 @@ export interface Order {
   notes?: string;
   internalNote?: string;
   location?: { lat: number; lng: number };
-  assignedDriver?: { id: string; name: string; code: string; phone: string };
+  assignedDriver?: AssignedDriver;
+  // Impresión de comanda (QZ Tray). 'printing' actúa como candado contra doble click.
+  printStatus?: OrderPrintStatus;
+  // Último trabajo de impresión encolado: los anteriores se descartan (evita duplicados al reintentar)
+  printJobId?: string;
+  printQueuedAt?: string;
+  printingStartedAt?: string;
+  printedAt?: string;
+  printCount?: number;
+  printError?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+// queued: en la cola esperando a la estación de impresión · printing: la estación lo está imprimiendo
+export type OrderPrintStatus = 'queued' | 'printing' | 'printed' | 'error';
+
+// ===== COLA DE IMPRESIÓN =====
+// Cualquier dispositivo (tablet, celular, PC) encola; la "estación" (PC con QZ Tray) imprime.
+
+export type PrintJobStatus = 'pending' | 'printing' | 'done' | 'failed' | 'superseded';
+
+/** restaurants/{restaurantId}/printJobs/{jobId} */
+export interface PrintJob {
+  id: string;
+  restaurantId: string;
+  orderId: string;
+  orderNumber: string;
+  // Por ahora 'main'; preparado para cocina/bar/caja
+  station: string;
+  status: PrintJobStatus;
+  requestedBy: string;
+  requestedByName?: string;
+  requestedAt: string;
+  claimedBy?: string;
+  claimedAt?: string;
+  completedAt?: string;
+  error?: string;
+}
+
+/** restaurants/{restaurantId}/printStations/{stationId} — "latido" de la PC que imprime. */
+export interface PrintStation {
+  id: string;
+  restaurantId: string;
+  lastSeenAt: string;
+  qzConnected: boolean;
+  printerName?: string;
+  userEmail?: string;
+}
+
+// ===== IMPRESORAS (QZ Tray) =====
+
+export type PaperWidth = 58 | 80;
+// cp850: soporta tildes y ñ · ascii: sin tildes (para impresoras que muestran caracteres raros)
+export type PrinterEncoding = 'cp850' | 'ascii';
+
+/** restaurants/{restaurantId}/printers/{id} — por ahora una sola ("main") para todo el pedido. */
+export interface PrinterConfig {
+  id: string;
+  restaurantId: string;
+  // Nombre exacto reportado por QZ Tray (qz.printers.find())
+  name: string;
+  paperWidth: PaperWidth;
+  encoding: PrinterEncoding;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SavePrinterConfigData = Pick<PrinterConfig, 'name' | 'paperWidth' | 'encoding'>;
 
 // ===== ZONAS DE DOMICILIO =====
 
@@ -205,19 +368,51 @@ export interface Domiciliario {
   id: string;
   restaurantId: string;
   name: string;
-  code: string;
+  // Solo domiciliarios individuales; las empresas no tienen código
+  code?: string;
+  // Celular del domiciliario, o de la empresa (a donde se envía el pedido)
   phone: string;
+  // true = empresa de domicilios
+  isCompany?: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export type CreateDomiciliarioData = Omit<Domiciliario, 'id' | 'createdAt' | 'updatedAt'>;
-export type UpdateDomiciliarioData = Partial<Pick<Domiciliario, 'name' | 'code' | 'phone' | 'isActive'>>;
+export type UpdateDomiciliarioData = Partial<Pick<Domiciliario, 'name' | 'code' | 'phone' | 'isCompany' | 'isActive'>>;
+
+/** Domiciliario (o empresa) asignado a un pedido: copia de sus datos al momento de asignar. */
+export interface AssignedDriver {
+  id: string;
+  name: string;
+  phone: string;
+  code?: string;
+  isCompany?: boolean;
+  // Solo empresas: nombre o código de quien tomó el pedido (texto libre, para trazabilidad)
+  courierName?: string;
+}
 
 export type CreateOrderData = Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt'>;
 export type UpdateOrderData = Partial<Pick<Order,
   'statusId' | 'notes' | 'deliveryFee' | 'isPaid' | 'internalNote' |
   'items' | 'subtotal' | 'total' | 'customerName' | 'customerPhone' |
-  'customerAddress' | 'barrio' | 'deliveryType' | 'paymentMethod' | 'assignedDriver'
+  'customerAddress' | 'barrio' | 'deliveryType' | 'paymentMethod' | 'assignedDriver' |
+  'tableId' | 'tableName' | 'isScheduled' | 'scheduledFor' |
+  'paymentMethodType' | 'paymentAccount'
 >>;
+
+// ===== MESAS =====
+
+export interface Mesa {
+  id: string;
+  restaurantId: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateMesaData = Omit<Mesa, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateMesaData = Partial<Pick<Mesa, 'name' | 'isActive' | 'sortOrder'>>;

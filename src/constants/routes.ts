@@ -1,20 +1,35 @@
 export const ROUTES = {
   home: '/',
   login: '/login',
+  registrarLocal: '/registrar-local',
   // Super admin
   admin: {
     root: '/admin',
     restaurants: '/admin/restaurantes',
+    leads: '/admin/inscripciones',
+    plans: '/admin/planes',
+    planNew: '/admin/planes/nuevo',
+    plan: (id: string) => `/admin/planes/${id}`,
   },
   // Restaurant dashboard
   dashboard: {
     root: '/dashboard',
     pedidos: '/dashboard/pedidos',
-    menu: '/dashboard/menu',
     estados: '/dashboard/estados',
+    productos: '/dashboard/productos',
+    categorias: '/dashboard/categorias',
+    adicionales: '/dashboard/adicionales',
     contabilidad: '/dashboard/contabilidad',
+    pagos: '/dashboard/pagos',
+    zonas: '/dashboard/domicilios/zonas',
+    domiciliarios: '/dashboard/domicilios/domiciliarios',
+    entrega: '/dashboard/entrega',
     configuracion: '/dashboard/configuracion',
+    impresoras: '/dashboard/configuracion/impresoras',
+    estacionImpresion: '/dashboard/estacion-impresion',
     equipo: '/dashboard/equipo',
+    // legacy — keep for redirects only
+    menu: '/dashboard/menu',
     domicilios: '/dashboard/domicilios',
   },
   // Public menu

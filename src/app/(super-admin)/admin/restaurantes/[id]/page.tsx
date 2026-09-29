@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -8,9 +8,10 @@ import { useRestaurant } from '@/features/restaurants/hooks/useRestaurants';
 import { RestaurantForm } from '@/features/restaurants/components/RestaurantForm';
 import { MenuPreview } from '@/features/restaurants/components/RestaurantForm/MenuPreview';
 import { Modal } from '@/components/ui/Modal';
+import { authFetch } from '@/lib/auth/authFetch';
 import type { RestaurantColorsPayload } from '@/features/restaurants/components/RestaurantForm/RestaurantForm.types';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sg = "var(--font-sans, sans-serif)";
 
 const DEFAULT_COLORS: RestaurantColorsPayload = {
   pri: '#F59211',
@@ -58,7 +59,7 @@ export default function EditarRestaurantePage() {
     setPasswordError('');
     setPasswordLoading(true);
     try {
-      const res = await fetch('/api/restaurants', {
+      const res = await authFetch('/api/restaurants', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: restaurant!.adminUserId, newPassword }),
@@ -170,6 +171,7 @@ export default function EditarRestaurantePage() {
               onSuccess={goBack}
               onCancel={goBack}
               onColorsChange={setColors}
+              showPlanSelector
             />
           </div>
         )}
@@ -180,7 +182,7 @@ export default function EditarRestaurantePage() {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         title="Cambiar contraseña"
-        description={`Establecé una nueva contraseña para el admin de ${restaurant?.name ?? 'este restaurante'}.`}
+        description={`Establece una nueva contraseña para el admin de ${restaurant?.name ?? 'este restaurante'}.`}
         size="sm"
       >
         <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -210,7 +212,7 @@ export default function EditarRestaurantePage() {
             </label>
             <input
               type="password"
-              placeholder="Repetí la contraseña"
+              placeholder="Repite la contraseña"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={passwordLoading}

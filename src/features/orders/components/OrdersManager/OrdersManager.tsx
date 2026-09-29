@@ -23,6 +23,7 @@ import { useProducts } from '@/features/products/hooks/useProducts';
 import { useAdicionales } from '@/features/adicionales/hooks/useAdicionales';
 import { useCategories } from '@/features/categories';
 import { useDomiciliarios } from '@/features/delivery-zones/hooks/useDomiciliarios';
+import { useRestaurant } from '@/features/restaurants/hooks/useRestaurants';
 import type { Order } from '@/types';
 
 import { useOrders } from '../../hooks/useOrders';
@@ -153,8 +154,10 @@ function DroppableColumn({
 
 // ── Draggable card ────────────────────────────────────────────────────────────
 
-function DraggableCard(props: React.ComponentProps<typeof OrderCard>) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: props.order.id });
+function DraggableCard({ canDrag, ...props }: React.ComponentProps<typeof OrderCard> & { canDrag: boolean }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: props.order.id, disabled: !canDrag });
+  // Sin permiso para cambiar estados la tarjeta no se arrastra
+  if (!canDrag) return <OrderCard {...props} />;
   return (
     <div
       ref={setNodeRef}
@@ -163,7 +166,7 @@ function DraggableCard(props: React.ComponentProps<typeof OrderCard>) {
       style={{ opacity: isDragging ? 0.35 : 1, cursor: isDragging ? 'grabbing' : 'grab' }}
       className="group relative"
     >
-      <div className="pointer-events-none absolute right-10 top-3 z-10 rounded-lg p-1 text-gray-300 opacity-0 transition-opacity group-hover:text-gray-400 group-hover:opacity-100">
+      <div className="pointer-events-none absolute right-10 top-3 z-10 rounded-lg p-1 text-[var(--t-text-4)] opacity-0 transition-opacity group-hover:text-[var(--t-text-3)] group-hover:opacity-100">
         <GripVertical className="h-4 w-4" />
       </div>
       <OrderCard {...props} />
@@ -233,7 +236,8 @@ function isThisMonth(isoString: string): boolean {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OrdersManager() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
+  const canChangeStatus = can('orders.change_status');
   const restaurantId = user?.restaurantId ?? '';
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -243,6 +247,7 @@ export function OrdersManager() {
   const { data: adicionales = [] } = useAdicionales(restaurantId);
   const { data: categories = [] } = useCategories(restaurantId);
   const { data: domiciliarios = [] } = useDomiciliarios(restaurantId);
+  const { data: restaurant } = useRestaurant(restaurantId || undefined);
   const { updateStatus } = useUpdateOrderStatus(restaurantId);
 
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
@@ -372,7 +377,7 @@ export function OrdersManager() {
     if (!over) return;
 
     const order = filteredOrders.find((o) => o.id === String(active.id));
-    if (!order) return;
+    if (!order || !canChangeStatus) return;
 
     const newStatusId = String(over.id);
     if (order.statusId === newStatusId) return;
@@ -380,7 +385,7 @@ export function OrdersManager() {
     try {
       await updateStatus(order.id, newStatusId);
     } catch {
-      setDragError('No se pudo mover el pedido. Intentá de nuevo.');
+      setDragError('No se pudo mover el pedido. Intenta de nuevo.');
       setTimeout(() => setDragError(null), 3000);
     }
   }
@@ -408,18 +413,19 @@ export function OrdersManager() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-gray-900">Pedidos en vivo</h2>
+            <h2 className="text-2xl font-bold text-[var(--t-text-1)]">Pedidos en vivo</h2>
             <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
               <Wifi className="h-3 w-3" />
               En vivo
             </span>
           </div>
-          <p className="mt-0.5 text-sm text-gray-500">
+          <p className="mt-0.5 text-sm text-[var(--t-text-3)]">
             {filteredOrders.length} pedido{filteredOrders.length !== 1 ? 's' : ''} activos
           </p>
         </div>
 
         <div className="flex gap-2">
+          {can('orders.create') && (
           <button
             onClick={() => setIsManualModalOpen(true)}
             className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
@@ -427,10 +433,11 @@ export function OrdersManager() {
             <Plus className="h-4 w-4" />
             Pedido manual
           </button>
+          )}
           <button
             onClick={playNotificationSound}
             title="Probar sonido"
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-4 py-2 text-sm font-medium text-[var(--t-text-2)] transition-colors hover:bg-[var(--t-surface-2)]"
           >
             🔔
           </button>
@@ -439,7 +446,7 @@ export function OrdersManager() {
               knownIdsRef.current = null;
               setRefreshKey((k) => k + 1);
             }}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-4 py-2 text-sm font-medium text-[var(--t-text-2)] transition-colors hover:bg-[var(--t-surface-2)]"
           >
             <RefreshCw className="h-4 w-4" />
             Refrescar
@@ -461,8 +468,8 @@ export function OrdersManager() {
             onClick={() => setDateFilter(key)}
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
               dateFilter === key
-                ? 'bg-gray-900 text-white'
-                : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                ? 'bg-[var(--t-text-1)] text-[var(--t-bg)]'
+                : 'border border-[var(--t-border)] bg-[var(--t-surface)] text-[var(--t-text-2)] hover:bg-[var(--t-surface-2)]'
             }`}
           >
             {label}
@@ -487,7 +494,7 @@ export function OrdersManager() {
         {/* Scrollbar custom arriba — solo se muestra cuando hay overflow */}
         {hasOverflow && (
           <div
-            style={{ position: 'sticky', top: 0, zIndex: 10, height: 8, background: '#e5e7eb', borderRadius: 999, margin: '12px 0 4px', cursor: 'pointer' }}
+            style={{ position: 'sticky', top: 0, zIndex: 10, height: 8, background: 'var(--t-border-2)', borderRadius: 999, margin: '12px 0 4px', cursor: 'pointer' }}
             onClick={(e) => {
               const el = boardScrollRef.current;
               if (!el) return;
@@ -499,7 +506,7 @@ export function OrdersManager() {
               onMouseDown={handleThumbMouseDown}
               style={{
                 position: 'absolute', top: 0, height: '100%',
-                background: '#6b7280', borderRadius: 999,
+                background: 'var(--t-text-3)', borderRadius: 999,
                 width: thumbWpx, left: thumbLpx,
                 cursor: 'grab',
               }}
@@ -524,9 +531,9 @@ export function OrdersManager() {
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: status.color }}
                     />
-                    <span className="font-semibold text-gray-800">{status.name}</span>
+                    <span className="font-semibold text-[var(--t-text-1)]">{status.name}</span>
                     {columnOrders.length > 0 && (
-                      <span className="ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-600">
+                      <span className="ml-auto rounded-full bg-[var(--t-surface-2)] px-2 py-0.5 text-xs font-bold text-[var(--t-text-2)]">
                         {columnOrders.length}
                       </span>
                     )}
@@ -535,7 +542,7 @@ export function OrdersManager() {
                   {/* Column body — droppable */}
                   <DroppableColumn statusId={status.id} color={status.color}>
                     {columnOrders.length === 0 ? (
-                      <div className="flex items-center justify-center py-8 text-sm text-gray-400">
+                      <div className="flex items-center justify-center py-8 text-sm text-[var(--t-text-4)]">
                         <div className="text-center">
                           <ShoppingBag className="mx-auto mb-2 h-6 w-6 opacity-30" />
                           <span>Sin pedidos</span>
@@ -545,6 +552,7 @@ export function OrdersManager() {
                       columnOrders.map((order) => (
                         <DraggableCard
                           key={order.id}
+                          canDrag={canChangeStatus}
                           order={order}
                           status={status}
                           statuses={activeStatuses}
@@ -564,8 +572,8 @@ export function OrdersManager() {
             {activeStatuses.length === 0 && (
               <div className="flex flex-1 items-center justify-center py-16 text-center">
                 <div>
-                  <ShoppingBag className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-                  <p className="text-gray-500">No hay estados configurados.</p>
+                  <ShoppingBag className="mx-auto mb-3 h-10 w-10 text-[var(--t-text-4)]" />
+                  <p className="text-[var(--t-text-3)]">No hay estados configurados.</p>
                 </div>
               </div>
             )}
@@ -608,6 +616,7 @@ export function OrdersManager() {
           products={products}
           adicionales={adicionales}
           categories={categories}
+          paymentMethods={restaurant?.paymentMethods}
           onClose={() => setEditingOrder(null)}
           onSaved={() => setEditingOrder(null)}
         />
@@ -622,6 +631,7 @@ export function OrdersManager() {
         products={products}
         adicionales={adicionales}
         categories={categories}
+        paymentMethods={restaurant?.paymentMethods}
       />
 
       {/* Toasts nuevos pedidos */}

@@ -11,8 +11,8 @@ import { useRestaurants } from '../../hooks/useRestaurants';
 import { useToggleRestaurantActive, useDeleteRestaurant } from '../../hooks/useRestaurantMutations';
 import { RestaurantList } from '../RestaurantList';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
 export function RestaurantsManager() {
   const router = useRouter();
@@ -74,11 +74,11 @@ export function RestaurantsManager() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
         <div>
-          <h2 style={{ fontWeight: 700, fontSize: 28, letterSpacing: '-.02em', color: '#1B1512', margin: '0 0 4px' }}>
+          <h2 style={{ fontWeight: 700, fontSize: 28, letterSpacing: '-.02em', color: 'var(--t-text-1)', margin: '0 0 4px' }}>
             Restaurantes
           </h2>
-          <p style={{ fontFamily: sm, fontSize: 12, color: '#8a7f76', margin: 0 }}>
-            Gestioná todos los locales de la plataforma
+          <p style={{ fontFamily: sm, fontSize: 12, color: 'var(--t-text-3)', margin: 0 }}>
+            Gestiona todos los locales de la plataforma
           </p>
         </div>
         <button
@@ -86,7 +86,7 @@ export function RestaurantsManager() {
           style={{
             display: 'flex', alignItems: 'center', gap: 9, fontFamily: sg,
             fontWeight: 600, fontSize: 14, color: '#fff', border: 0,
-            borderRadius: 12, padding: '13px 20px', cursor: 'pointer',
+            borderRadius: 999, padding: '13px 20px', cursor: 'pointer',
             background: 'linear-gradient(135deg, #FF8A2B, #FF6A1A 55%, #EA3B2E)',
             boxShadow: '0 10px 24px -8px rgba(234,59,46,.5)',
           }}
@@ -108,14 +108,14 @@ export function RestaurantsManager() {
           <div
             key={label}
             style={{
-              flex: 1, background: '#fff', border: '1px solid #EFE7DF',
+              flex: 1, background: 'var(--t-surface)', border: '1px solid var(--t-border-2)',
               borderRadius: 14, padding: '16px 18px',
             }}
           >
-            <div style={{ fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: '#9a8f86', marginBottom: 8 }}>
+            <div style={{ fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: 'var(--t-text-3)', marginBottom: 8 }}>
               {label}
             </div>
-            <div style={{ fontWeight: 700, fontSize: 26, color: '#1B1512' }}>
+            <div style={{ fontWeight: 700, fontSize: 26, color: 'var(--t-text-1)' }}>
               {value}
               {dot && (
                 <span style={{ fontSize: 13, color: '#3F9E6A', fontFamily: sm, marginLeft: 6 }}>●</span>
@@ -127,7 +127,7 @@ export function RestaurantsManager() {
 
       {/* Search */}
       <div style={{ position: 'relative', marginBottom: 22 }}>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#a89e95" strokeWidth="2" strokeLinecap="round"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--t-text-4)" strokeWidth="2" strokeLinecap="round"
           style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
           <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
         </svg>
@@ -137,12 +137,12 @@ export function RestaurantsManager() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
-            fontFamily: sg, fontSize: 14, color: '#1B1512', width: '100%',
-            border: '1.5px solid #E7DED6', background: '#fff', borderRadius: 13,
+            fontFamily: sg, fontSize: 14, color: 'var(--t-text-1)', width: '100%',
+            border: '1.5px solid var(--t-input-border)', background: 'var(--t-input-bg)', borderRadius: 13,
             padding: '13px 16px 13px 44px', outline: 'none',
           }}
           onFocus={(e) => { e.target.style.borderColor = '#FF6A1A'; e.target.style.boxShadow = '0 0 0 4px rgba(255,106,26,.12)'; }}
-          onBlur={(e) => { e.target.style.borderColor = '#E7DED6'; e.target.style.boxShadow = 'none'; }}
+          onBlur={(e) => { e.target.style.borderColor = 'var(--t-input-border)'; e.target.style.boxShadow = 'none'; }}
         />
       </div>
 
@@ -161,7 +161,7 @@ export function RestaurantsManager() {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         title="Eliminar restaurante"
-        description={`¿Estás seguro que querés eliminar "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
+        description={`¿Estás seguro de que quieres eliminar "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
         size="sm"
       >
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '20px 24px' }}>
@@ -169,8 +169,8 @@ export function RestaurantsManager() {
             onClick={() => setDeleteTarget(null)}
             style={{
               fontFamily: sg, fontWeight: 600, fontSize: 14,
-              color: '#6b7280', background: '#f3f4f6',
-              border: 0, borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
+              color: 'var(--t-text-2)', background: 'var(--t-surface-2)',
+              border: 0, borderRadius: 999, padding: '10px 20px', cursor: 'pointer',
             }}
           >
             Cancelar
@@ -180,7 +180,7 @@ export function RestaurantsManager() {
             style={{
               fontFamily: sg, fontWeight: 600, fontSize: 14,
               color: '#fff', background: '#EF4444',
-              border: 0, borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
+              border: 0, borderRadius: 999, padding: '10px 20px', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 7,
             }}
           >

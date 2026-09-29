@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['var(--font-display)', 'sans-serif'],
+        sans: ['var(--font-sans)', 'sans-serif'],
+        mono: ['var(--font-mono)', 'monospace'],
+      },
       colors: {
         primary: 'var(--color-primary)',
         secondary: 'var(--color-secondary)',
@@ -16,7 +21,12 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  darkMode: 'class',
+  plugins: [require('daisyui')],
+  daisyui: {
+    themes: ['light', 'dark'],
+    logs: false,
+  },
 };
 
 export default config;

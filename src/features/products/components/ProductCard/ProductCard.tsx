@@ -7,8 +7,8 @@ import { formatCurrency } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/Tooltip';
 import type { ProductCardProps } from './ProductCard.types';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
 export function ProductCard({
   product,
@@ -29,7 +29,7 @@ export function ProductCard({
 
   const iconBtn: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: 34, height: 34, borderRadius: 9, border: 'none',
+    width: 34, height: 34, borderRadius: 999, border: 'none',
     background: 'transparent', cursor: 'pointer', transition: 'background .12s',
   };
 
@@ -38,7 +38,7 @@ export function ProductCard({
       style={{
         fontFamily: sg,
         display: 'flex', alignItems: 'center', gap: 14,
-        background: '#fff', border: '1px solid #EFE7DF', borderRadius: 16, padding: '12px 16px',
+        background: 'var(--t-surface)', border: '1px solid var(--t-border-2)', borderRadius: 16, padding: '12px 16px',
         opacity: (!isActive || isMoving) ? 0.65 : 1,
         transition: 'box-shadow .18s, opacity .2s',
       }}
@@ -49,34 +49,34 @@ export function ProductCard({
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         <Tooltip content="Mover arriba" side="left">
           <button
-            onClick={() => onMoveUp(index)}
-            disabled={isFirst || isMoving}
+            onClick={() => onMoveUp?.(index)}
+            disabled={isFirst || isMoving || !onMoveUp}
             style={{
               ...iconBtn,
-              color: isFirst ? '#d8ccc2' : '#9a8f86',
+              color: isFirst ? 'var(--t-text-4)' : 'var(--t-text-3)',
               cursor: isFirst ? 'not-allowed' : 'pointer',
             }}
-            onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
             <ChevronUp className="h-4 w-4" />
           </button>
         </Tooltip>
 
-        <span style={{ fontFamily: sm, fontSize: 11, fontWeight: 700, color: '#c9a78f', lineHeight: 1 }}>
+        <span style={{ fontFamily: sm, fontSize: 11, fontWeight: 700, color: 'var(--t-text-4)', lineHeight: 1 }}>
           {index + 1}
         </span>
 
         <Tooltip content="Mover abajo" side="left">
           <button
-            onClick={() => onMoveDown(index)}
-            disabled={isLast || isMoving}
+            onClick={() => onMoveDown?.(index)}
+            disabled={isLast || isMoving || !onMoveDown}
             style={{
               ...iconBtn,
-              color: isLast ? '#d8ccc2' : '#9a8f86',
+              color: isLast ? 'var(--t-text-4)' : 'var(--t-text-3)',
               cursor: isLast ? 'not-allowed' : 'pointer',
             }}
-            onMouseEnter={(e) => { if (!isLast) (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { if (!isLast) (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
             <ChevronDown className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function ProductCard({
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: '#1B1512' }}>{name}</span>
+          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--t-text-1)' }}>{name}</span>
 
           {category && (
             <span style={{ background: 'rgba(255,106,26,.12)', color: '#FF6A1A', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 9px' }}>
@@ -111,7 +111,7 @@ export function ProductCard({
             </span>
           )}
           {!isActive && (
-            <span style={{ background: '#EDE7E0', color: '#8a7f76', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '2px 9px' }}>
+            <span style={{ background: 'var(--t-surface-2)', color: 'var(--t-text-3)', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '2px 9px' }}>
               Inactivo
             </span>
           )}
@@ -125,7 +125,7 @@ export function ProductCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontWeight: 700, fontSize: 14, color: '#FF6A1A' }}>{formatCurrency(price)}</span>
           {adicionalIds.length > 0 && (
-            <span style={{ fontFamily: sm, fontSize: 11, color: '#b8aaa0' }}>
+            <span style={{ fontFamily: sm, fontSize: 11, color: 'var(--t-text-4)' }}>
               {adicionalIds.length} adicional{adicionalIds.length !== 1 ? 'es' : ''}
             </span>
           )}
@@ -134,35 +134,40 @@ export function ProductCard({
 
       {/* Acciones */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        {onToggleAvailable && (
         <Tooltip content={isAvailable ? 'Marcar no disponible' : 'Marcar disponible'}>
           <button
-            onClick={() => onToggleAvailable(id, !isAvailable)}
+            onClick={() => onToggleAvailable?.(id, !isAvailable)}
             disabled={isToggling}
             style={{ ...iconBtn, opacity: isToggling ? 0.5 : 1 }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
             {isAvailable
               ? <Eye style={{ width: 16, height: 16, color: '#3F9E6A' }} />
-              : <EyeOff style={{ width: 16, height: 16, color: '#b8aaa0' }} />
+              : <EyeOff style={{ width: 16, height: 16, color: 'var(--t-text-4)' }} />
             }
           </button>
         </Tooltip>
+        )}
 
+        {onEdit && (
         <Tooltip content="Editar">
           <button
-            onClick={() => onEdit(product)}
+            onClick={() => onEdit?.(product)}
             style={iconBtn}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
-            <Edit2 style={{ width: 15, height: 15, color: '#8a7f76' }} />
+            <Edit2 style={{ width: 15, height: 15, color: 'var(--t-text-3)' }} />
           </button>
         </Tooltip>
+        )}
 
+        {onDelete && (
         <Tooltip content="Eliminar">
           <button
-            onClick={() => onDelete(id, name)}
+            onClick={() => onDelete?.(id, name)}
             disabled={isDeleting}
             style={{ ...iconBtn, opacity: isDeleting ? 0.5 : 1 }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FDF1EF'; }}
@@ -171,6 +176,7 @@ export function ProductCard({
             <Trash2 style={{ width: 15, height: 15, color: '#D8412F' }} />
           </button>
         </Tooltip>
+        )}
       </div>
     </div>
   );

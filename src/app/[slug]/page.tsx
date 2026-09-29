@@ -8,6 +8,8 @@ import { productsService } from '@/features/products/services/products.service';
 import { restaurantsService } from '@/features/restaurants/services/restaurants.service';
 import { orderStatusesService } from '@/features/order-statuses/services/order-statuses.service';
 import { deliveryZonesService } from '@/features/delivery-zones/services/delivery-zones.service';
+import { mesasService } from '@/features/delivery-methods/services/mesas.service';
+import { applyPlanFeatures } from '@/lib/permissions/planFeatures';
 
 interface Props {
   params: { slug: string };
@@ -23,13 +25,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function RestaurantMenuPage({ params }: Props) {
-  const restaurant = await restaurantsService.getBySlug(params.slug);
+  const stored = await restaurantsService.getBySlug(params.slug);
 
-  if (!restaurant || !restaurant.isActive) {
+  if (!stored || !stored.isActive) {
     notFound();
   }
 
-  const [categories, products, adicionales, statuses, allZones] = await Promise.all([
+  // Lo que el plan no incluye no se ofrece en el menú (mesa, programados, zonas, cuentas de pago)
+  const restaurant = applyPlanFeatures(stored);
+
+  const mesaMethodActive = restaurant.deliveryMethods?.mesa?.isActive ?? false;
+
+  const [categories, products, adicionales, statuses, allZones, allMesas] = await Promise.all([
     categoriesService.getAll(restaurant.id),
     productsService.getAll(restaurant.id),
     adicionalesService.getAll(restaurant.id),
@@ -37,6 +44,7 @@ export default async function RestaurantMenuPage({ params }: Props) {
     restaurant.deliveryMode === 'zones'
       ? deliveryZonesService.getAll(restaurant.id)
       : Promise.resolve([]),
+    mesaMethodActive ? mesasService.getAll(restaurant.id) : Promise.resolve([]),
   ]);
 
   const activeCategories = categories.filter((c) => c.isActive);
@@ -44,6 +52,7 @@ export default async function RestaurantMenuPage({ params }: Props) {
   const activeAdicionales = adicionales.filter((a) => a.isActive);
   const receivedStatusId = statuses.find((s) => s.code === 'received')?.id ?? '';
   const deliveryZones = allZones.filter((z) => z.isActive);
+  const mesas = allMesas.filter((m) => m.isActive);
 
   return (
     <MenuPage
@@ -54,6 +63,7 @@ export default async function RestaurantMenuPage({ params }: Props) {
       receivedStatusId={receivedStatusId}
       deliveryZones={deliveryZones}
       deliveryMode={restaurant.deliveryMode ?? 'manual'}
+      mesas={mesas}
     />
   );
 }
