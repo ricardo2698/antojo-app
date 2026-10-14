@@ -1,7 +1,50 @@
-import type { Restaurant } from '@/types';
+﻿import Image from 'next/image';
+import type { Restaurant, OpeningHours } from '@/types';
+import { SocialLinks } from '../SocialLinks';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = 'var(--font-space-mono, monospace)';
+const sg = "var(--font-sans, sans-serif)";
+const sm = 'var(--font-mono, monospace)';
+
+function toMin(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function fmtHour(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  const ap = h < 12 ? 'a.m.' : 'p.m.';
+  let hh = h % 12;
+  if (hh === 0) hh = 12;
+  return `${hh}:${String(m).padStart(2, '0')} ${ap}`;
+}
+function getMenuStatus(openingHours?: OpeningHours): { open: boolean; label: string } | null {
+  if (!openingHours) return null;
+  const anyDefined = Object.values(openingHours).some((v) => v !== null && v !== undefined);
+  if (!anyDefined) return null;
+
+  const now = new Date();
+  const day = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const today = openingHours[day];
+  const DAY_NAMES = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+  if (today) {
+    const o = toMin(today.open);
+    const c = toMin(today.close);
+    const overnight = c <= o;
+    const isOpen = overnight ? (mins >= o || mins < c) : (mins >= o && mins < c);
+    if (isOpen) return { open: true, label: `Cierra ${fmtHour(today.close)}` };
+    if (mins < o) return { open: false, label: `Abre hoy ${fmtHour(today.open)}` };
+  }
+  for (let i = 1; i <= 7; i++) {
+    const d = (day + i) % 7;
+    const next = openingHours[d];
+    if (next) {
+      const when = i === 1 ? 'mañana' : DAY_NAMES[d];
+      return { open: false, label: `Abre ${when} ${fmtHour(next.open)}` };
+    }
+  }
+  return { open: false, label: 'Cerrado' };
+}
 
 interface MenuHeaderProps {
   restaurant: Restaurant;
@@ -11,7 +54,7 @@ interface MenuHeaderProps {
 }
 
 export function MenuHeader({ restaurant, cartCount, onNavOpen, onCartOpen }: MenuHeaderProps) {
-  const { name, tagline, description, logo, bannerImage, theme } = restaurant;
+  const { name, tagline, description, logo, bannerImage, theme, openingHours, instagram, facebook, tiktok, twitter } = restaurant;
   const { primaryColor: pri, secondaryColor: sec, accentColor: acc, bgColor } = theme;
   const bg = bgColor ?? '#FBF8F5';
   const subtitle = tagline || description;
@@ -177,7 +220,7 @@ export function MenuHeader({ restaurant, cartCount, onNavOpen, onCartOpen }: Men
               height: 120,
               borderRadius: '50%',
               background: '#fff',
-              padding: 6,
+              padding: 2,
               boxShadow: '0 10px 26px -8px rgba(0,0,0,.3)',
               flexShrink: 0,
               position: 'relative',
@@ -194,14 +237,11 @@ export function MenuHeader({ restaurant, cartCount, onNavOpen, onCartOpen }: Men
                 display: 'grid',
                 placeItems: 'center',
                 border: '1px solid #f2ede7',
+                position: 'relative',
               }}
             >
               {logo ? (
-                <img
-                  src={logo}
-                  alt={name}
-                  style={{ width: '65%', height: '65%', objectFit: 'contain' }}
-                />
+                <Image src={logo} alt={name} fill sizes="80px" style={{ objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontWeight: 700, fontSize: 36, color: pri, fontFamily: sg }}>
                   {name[0]?.toUpperCase()}
@@ -238,32 +278,52 @@ export function MenuHeader({ restaurant, cartCount, onNavOpen, onCartOpen }: Men
             </p>
           )}
 
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              marginTop: 16,
-              fontFamily: sm,
-              fontSize: 11,
-              fontWeight: 700,
-              color: pri,
-              background: acc,
-              borderRadius: 999,
-              padding: '7px 14px',
-            }}
-          >
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: pri,
-                display: 'inline-block',
-              }}
-            />
-            ABIERTO · 20 min
-          </div>
+          {/* Social icons — always shown if configured, independent of schedule */}
+          <SocialLinks
+            instagram={instagram}
+            facebook={facebook}
+            tiktok={tiktok}
+            twitter={twitter}
+            restaurantName={name}
+            color={pri}
+            variant="dark"
+            align="center"
+          />
+
+          {(() => {
+            const status = getMenuStatus(openingHours);
+            if (!status) return null;
+            const todaySchedule = openingHours?.[new Date().getDay()];
+            return (
+              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {/* Pill abierto/cerrado */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontFamily: sm,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    padding: '7px 14px',
+                    alignSelf: 'flex-start',
+                    color: status.open ? pri : '#8a7f76',
+                    background: status.open ? acc : '#EDE7E0',
+                  }}
+                >
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: status.open ? pri : '#b3a89e', display: 'inline-block' }} />
+                  {status.open ? 'ABIERTO' : 'CERRADO'} · {status.label}
+                </div>
+                {/* Horario del día */}
+                {todaySchedule && (
+                  <div style={{ fontFamily: sm, fontSize: 10.5, color: '#a89e95', paddingLeft: 2 }}>
+                    Hoy: {fmtHour(todaySchedule.open)} – {fmtHour(todaySchedule.close)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

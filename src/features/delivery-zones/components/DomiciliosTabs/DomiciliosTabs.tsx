@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { DeliveryZonesManager } from '../DeliveryZonesManager';
 import { DomiciliariosManager } from '../DomiciliariosManager';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sg = "var(--font-sans, sans-serif)";
 
 type Tab = 'zonas' | 'domiciliarios';
 
@@ -35,13 +35,13 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-export function DomiciliosTabs() {
-  const [active, setActive] = useState<Tab>('zonas');
+export function DomiciliosTabs({ defaultTab = 'zonas' }: { defaultTab?: Tab }) {
+  const [active, setActive] = useState<Tab>(defaultTab);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28, fontFamily: sg }}>
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, background: '#F3EDE7', borderRadius: 14, padding: 4, alignSelf: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 4, background: 'var(--t-surface-2)', borderRadius: 14, padding: 4, alignSelf: 'flex-start' }}>
         {TABS.map((tab) => {
           const sel = active === tab.key;
           return (
@@ -50,15 +50,15 @@ export function DomiciliosTabs() {
               onClick={() => setActive(tab.key)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 16px', borderRadius: 10, border: 'none',
-                background: sel ? '#fff' : 'transparent',
+                padding: '8px 16px', borderRadius: 999, border: 'none',
+                background: sel ? 'var(--t-surface)' : 'transparent',
                 boxShadow: sel ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
-                color: sel ? '#1B1512' : '#9a8f86',
+                color: sel ? 'var(--t-text-1)' : 'var(--t-text-3)',
                 fontFamily: sg, fontWeight: sel ? 700 : 500, fontSize: 14,
                 cursor: 'pointer', transition: 'all .15s',
               }}
             >
-              <span style={{ color: sel ? '#FF6A1A' : '#9a8f86' }}>{tab.icon}</span>
+              <span style={{ color: sel ? '#FF6A1A' : 'var(--t-text-3)' }}>{tab.icon}</span>
               {tab.label}
             </button>
           );

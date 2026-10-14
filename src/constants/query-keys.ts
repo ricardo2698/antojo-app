@@ -19,4 +19,20 @@ export const QUERY_KEYS = {
   deliveryZones: (restaurantId: string) => ['deliveryZones', restaurantId] as const,
 
   domiciliarios: (restaurantId: string) => ['domiciliarios', restaurantId] as const,
+
+  mesas: (restaurantId: string) => ['mesas', restaurantId] as const,
+
+  printer: (restaurantId: string) => ['printer', restaurantId] as const,
+
+  promotions: (restaurantId: string) => ['promotions', restaurantId] as const,
+
+  leads: ['leads'] as const,
+
+  plans: ['plans'] as const,
+  plan: (id: string) => ['plans', id] as const,
+
+  restaurantCategories: ['restaurant-categories'] as const,
+  restaurantCategory: (id: string) => ['restaurant-categories', id] as const,
+
+  waConfig: (restaurantId: string) => ['waConfig', restaurantId] as const,
 } as const;

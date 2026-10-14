@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 import { formatCurrency } from '@/lib/utils';
+import type { ProductPromotion } from '@/features/promotions/engine';
 import type { Category, Product } from '@/types';
 
 interface MenuListLayoutProps {
@@ -11,14 +12,32 @@ interface MenuListLayoutProps {
   products: Product[];
   primaryColor: string;
   secondaryColor: string;
+  restaurantClosed?: boolean;
   onSelect: (product: Product) => void;
+  activeCategoryId?: string;
+  // Promoción vigente de cada producto (precio tachado, 2x1, combo)
+  getPromotion?: (product: Product) => ProductPromotion | null;
 }
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
+const sg = "var(--font-sans, sans-serif)";
 
-export function MenuListLayout({ categories, products, primaryColor, secondaryColor, onSelect }: MenuListLayoutProps) {
+export function MenuListLayout({ categories, products, primaryColor, secondaryColor, restaurantClosed, onSelect, activeCategoryId, getPromotion }: MenuListLayoutProps) {
   // All categories open by default
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(categories.slice(0, 1).map((c) => c.id)));
+
+  // Cuando el sidebar cambia la categoría activa: abrir el acordeón y scrollear
+  useEffect(() => {
+    if (!activeCategoryId) return;
+    setOpenIds((prev) => {
+      if (prev.has(activeCategoryId)) return prev;
+      return new Set(Array.from(prev).concat(activeCategoryId));
+    });
+    const el = document.getElementById(`cat-${activeCategoryId}`);
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  }, [activeCategoryId]);
 
   function toggleCategory(id: string) {
     setOpenIds((prev) => {
@@ -38,7 +57,7 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
         const isOpen = openIds.has(cat.id);
 
         return (
-          <div key={cat.id} style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 24px -18px rgba(0,0,0,.3)' }}>
+          <div key={cat.id} id={`cat-${cat.id}`} style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 24px -18px rgba(0,0,0,.3)' }}>
             {/* Category header */}
             <button
               onClick={() => toggleCategory(cat.id)}
@@ -68,24 +87,24 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
                 {catProducts.map((product) => (
                   <div
                     key={product.id}
-                    onClick={() => product.isAvailable && onSelect(product)}
+                    onClick={() => product.isAvailable && !restaurantClosed && onSelect(product)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 13,
                       background: '#fff', borderRadius: 16, padding: '12px 14px',
                       boxShadow: '0 4px 14px -10px rgba(0,0,0,.3)',
                       opacity: product.isAvailable ? 1 : 0.55,
-                      cursor: product.isAvailable ? 'pointer' : 'default',
+                      cursor: (product.isAvailable && !restaurantClosed) ? 'pointer' : 'default',
                     }}
                   >
                     {/* Image */}
-                    <div style={{ width: 76, height: 76, borderRadius: 13, overflow: 'hidden', flexShrink: 0, border: '1px solid #f0ece7', background: '#fff', position: 'relative' }}>
+                    <div style={{ width: 96, height: 96, borderRadius: 14, overflow: 'hidden', flexShrink: 0, background: `${primaryColor}18`, position: 'relative' }}>
                       {product.image ? (
                         <Image
                           src={product.image}
                           alt={product.name}
                           fill
-                          style={{ objectFit: 'contain', padding: 6 }}
-                          sizes="76px"
+                          style={{ objectFit: 'cover' }}
+                          sizes="96px"
                         />
                       ) : (
                         <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: `${primaryColor}18` }}>
@@ -113,22 +132,40 @@ export function MenuListLayout({ categories, products, primaryColor, secondaryCo
                           {product.description}
                         </p>
                       )}
-                      <span style={{ fontFamily: sg, fontWeight: 700, fontSize: 15, color: secondaryColor }}>
-                        {formatCurrency(product.price)}
-                      </span>
+                      {(() => {
+                        const promo = getPromotion?.(product);
+                        return (
+                          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                            {promo?.finalPrice !== undefined && (
+                              <span style={{ fontFamily: sg, fontWeight: 600, fontSize: 12, color: '#9a9088', textDecoration: 'line-through' }}>
+                                {formatCurrency(product.price)}
+                              </span>
+                            )}
+                            <span style={{ fontFamily: sg, fontWeight: 700, fontSize: 15, color: secondaryColor }}>
+                              {formatCurrency(promo?.finalPrice ?? product.price)}
+                            </span>
+                            {promo && (
+                              <span title={promo.promotion.name} style={{ fontFamily: sg, fontWeight: 800, fontSize: 11, color: '#fff', background: '#dc2626', borderRadius: 999, padding: '2px 8px' }}>
+                                🔥 {promo.badge}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Add button */}
                     <button
                       aria-label="Añadir al pedido"
-                      onClick={(e) => { e.stopPropagation(); product.isAvailable && onSelect(product); }}
-                      disabled={!product.isAvailable}
+                      onClick={(e) => { e.stopPropagation(); if (product.isAvailable && !restaurantClosed) onSelect(product); }}
+                      disabled={!product.isAvailable || restaurantClosed}
                       style={{
                         width: 40, height: 40, flexShrink: 0,
-                        border: 0, borderRadius: 999, cursor: product.isAvailable ? 'pointer' : 'not-allowed',
-                        background: primaryColor,
+                        border: 0, borderRadius: 999,
+                        cursor: (product.isAvailable && !restaurantClosed) ? 'pointer' : 'not-allowed',
+                        background: (product.isAvailable && !restaurantClosed) ? primaryColor : '#d8d2cc',
                         display: 'grid', placeItems: 'center',
-                        boxShadow: `0 8px 16px -8px ${primaryColor}`,
+                        boxShadow: (product.isAvailable && !restaurantClosed) ? `0 8px 16px -8px ${primaryColor}` : 'none',
                       }}
                     >
                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round">

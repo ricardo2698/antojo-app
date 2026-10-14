@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import { Package } from 'lucide-react';
 
 import { useCartStore } from '@/store/cart.store';
 import { formatCurrency } from '@/lib/utils';
+import type { ProductPromotion } from '@/features/promotions/engine';
 import type { Product } from '@/types';
 
 interface MenuProductCardProps {
@@ -13,14 +14,18 @@ interface MenuProductCardProps {
   secondaryColor: string;
   accentColor: string;
   categoryName?: string;
+  restaurantClosed?: boolean;
+  // Promoción vigente del producto (precio tachado, 2x1, combo)
+  promotion?: ProductPromotion | null;
   onSelect: (product: Product) => void;
 }
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
-export function MenuProductCard({ product, primaryColor, secondaryColor, accentColor, categoryName, onSelect }: MenuProductCardProps) {
+export function MenuProductCard({ product, primaryColor, secondaryColor, accentColor, categoryName, restaurantClosed, promotion, onSelect }: MenuProductCardProps) {
   const { name, description, price, image, tag, isAvailable } = product;
+  const canAdd = isAvailable && !restaurantClosed;
 
   const items = useCartStore((s) => s.items);
   const qtyInCart = items
@@ -29,23 +34,23 @@ export function MenuProductCard({ product, primaryColor, secondaryColor, accentC
 
   return (
     <div
-      onClick={() => isAvailable && onSelect(product)}
+      onClick={() => canAdd && onSelect(product)}
       style={{
         background: '#fff',
         borderRadius: 22,
         overflow: 'hidden',
         boxShadow: '0 8px 26px -18px rgba(0,0,0,.3)',
         opacity: isAvailable ? 1 : 0.7,
-        cursor: isAvailable ? 'pointer' : 'default',
+        cursor: canAdd ? 'pointer' : 'default',
       }}
     >
       {/* imagen */}
-      <div style={{ position: 'relative', height: 200, background: '#fff' }}>
+      <div style={{ position: 'relative', aspectRatio: '4/3', background: `${primaryColor}12` }}>
         {image ? (
-          <Image src={image} alt={name} fill style={{ objectFit: 'contain', padding: '8px' }} sizes="(max-width: 600px) 100vw, 50vw" />
+          <Image src={image} alt={name} fill style={{ objectFit: 'cover' }} sizes="(max-width: 600px) 100vw, 50vw" />
         ) : (
-          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: '#f5f0eb' }}>
-            <Package style={{ width: 40, height: 40, color: '#d0c8be' }} />
+          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+            <Package style={{ width: 40, height: 40, color: `${primaryColor}60` }} />
           </div>
         )}
 
@@ -76,13 +81,33 @@ export function MenuProductCard({ product, primaryColor, secondaryColor, accentC
           background: '#fff', borderRadius: 999, padding: '7px 14px',
           boxShadow: '0 4px 10px rgba(0,0,0,.14)',
         }}>
-          {formatCurrency(price)}
+          {promotion?.finalPrice !== undefined && (
+            <span style={{ marginRight: 6, fontSize: 12, fontWeight: 600, color: '#9a8f86', textDecoration: 'line-through' }}>
+              {formatCurrency(price)}
+            </span>
+          )}
+          {formatCurrency(promotion?.finalPrice ?? price)}
           {qtyInCart > 0 && (
             <span style={{ marginLeft: 6, background: primaryColor, color: '#fff', borderRadius: 999, padding: '0 6px', fontSize: 11, fontWeight: 700 }}>
               {qtyInCart}
             </span>
           )}
         </span>
+
+        {/* promoción */}
+        {promotion && (
+          <span
+            title={promotion.promotion.name}
+            style={{
+              position: 'absolute', bottom: 12, left: 12,
+              fontFamily: sg, fontWeight: 800, fontSize: 13, color: '#fff',
+              background: '#dc2626', borderRadius: 999, padding: '5px 12px',
+              boxShadow: '0 4px 10px rgba(0,0,0,.18)',
+            }}
+          >
+            🔥 {promotion.badge}
+          </span>
+        )}
 
         {/* agotado overlay */}
         {!isAvailable && (
@@ -118,18 +143,19 @@ export function MenuProductCard({ product, primaryColor, secondaryColor, accentC
         )}
 
         <button
-          onClick={(e) => { e.stopPropagation(); isAvailable && onSelect(product); }}
-          disabled={!isAvailable}
+          onClick={(e) => { e.stopPropagation(); if (canAdd) onSelect(product); }}
+          disabled={!canAdd}
           style={{
             width: '100%', border: 0, borderRadius: 999, padding: 15,
-            cursor: isAvailable ? 'pointer' : 'not-allowed',
-            fontFamily: sg, fontWeight: 700, fontSize: 15, color: '#fff',
-            background: primaryColor,
-            boxShadow: `0 10px 22px -10px ${primaryColor}`,
+            cursor: canAdd ? 'pointer' : 'not-allowed',
+            fontFamily: sg, fontWeight: 700, fontSize: 15,
+            color: canAdd ? '#fff' : '#a09890',
+            background: canAdd ? primaryColor : '#e8e3dd',
+            boxShadow: canAdd ? `0 10px 22px -10px ${primaryColor}` : 'none',
             opacity: isAvailable ? 1 : 0.5,
           }}
         >
-          + Añadir al pedido
+          {restaurantClosed ? 'Restaurante cerrado' : '+ Añadir al pedido'}
         </button>
       </div>
     </div>

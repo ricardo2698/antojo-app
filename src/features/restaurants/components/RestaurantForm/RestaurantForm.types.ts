@@ -16,4 +16,8 @@ export interface RestaurantFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   onColorsChange?: (colors: RestaurantColorsPayload) => void;
+  // Solo en las páginas del super admin: elegir el plan del restaurante (obligatorio al crear)
+  showPlanSelector?: boolean;
+  // Formulario mínimo de creación: solo Plan, Nombre, Slug y Usuario administrador
+  variant?: 'create-minimal';
 }

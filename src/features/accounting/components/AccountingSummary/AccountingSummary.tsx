@@ -1,4 +1,4 @@
-import { TrendingUp, ShoppingBag, DollarSign, CreditCard, Package } from 'lucide-react';
+import { TrendingUp, ShoppingBag, DollarSign, CreditCard, Package, Tag } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
 
@@ -37,6 +37,65 @@ export function AccountingSummary({ stats }: AccountingSummaryProps) {
         />
       </div>
 
+      {/* Ventas brutas → descuentos → netas (solo si hubo promociones) */}
+      {stats.discounts > 0 && (
+        <div
+          className="grid gap-3 rounded-2xl p-5 sm:grid-cols-3"
+          style={{ border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}
+        >
+          <div>
+            <p className="text-xs" style={{ color: 'var(--t-text-4)' }}>Ventas brutas (productos)</p>
+            <p className="text-xl font-black" style={{ color: 'var(--t-text-1)' }}>{formatCurrency(stats.grossSales)}</p>
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--t-text-4)' }}>Descuentos por promociones</p>
+            <p className="text-xl font-black text-emerald-600">−{formatCurrency(stats.discounts)}</p>
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--t-text-4)' }}>Ventas netas (productos)</p>
+            <p className="text-xl font-black text-orange-500">{formatCurrency(stats.netSales)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Rendimiento de promociones */}
+      {stats.byPromotion.length > 0 && (
+        <div
+          className="rounded-2xl p-5"
+          style={{ border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <Tag className="h-5 w-5 text-emerald-600" />
+            <h3 className="font-bold" style={{ color: 'var(--t-text-1)' }}>Rendimiento de promociones</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ color: 'var(--t-text-4)' }} className="text-left text-xs">
+                  <th className="pb-2 font-semibold">Promoción</th>
+                  <th className="pb-2 text-right font-semibold">Pedidos</th>
+                  <th className="pb-2 text-right font-semibold">Ventas</th>
+                  <th className="pb-2 text-right font-semibold">Costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.byPromotion.map((p) => (
+                  <tr key={p.promotionId} style={{ borderTop: '1px solid var(--t-border)' }}>
+                    <td className="py-2 font-medium" style={{ color: 'var(--t-text-2)' }}>{p.name}</td>
+                    <td className="py-2 text-right font-bold" style={{ color: 'var(--t-text-1)' }}>{p.orders}</td>
+                    <td className="py-2 text-right" style={{ color: 'var(--t-text-2)' }}>{formatCurrency(p.revenue)}</td>
+                    <td className="py-2 text-right text-emerald-600">{p.cost > 0 ? `−${formatCurrency(p.cost)}` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs" style={{ color: 'var(--t-text-4)' }}>
+            Costo = descuentos y domicilios regalados. Los productos de regalo no se valoran aquí.
+          </p>
+        </div>
+      )}
+
       {/* Desglose por método de pago — tarjetas */}
       {Object.keys(byPaymentMethod).length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -45,15 +104,16 @@ export function AccountingSummary({ stats }: AccountingSummaryProps) {
             .map(([method, { total, count }]) => (
               <div
                 key={method}
-                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5"
+                className="flex items-center justify-between rounded-2xl p-5"
+                style={{ border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
                     <CreditCard className="h-5 w-5 text-blue-500" />
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900">{method}</p>
-                    <p className="text-xs text-gray-400">{count} pedido{count !== 1 ? 's' : ''}</p>
+                    <p className="font-bold" style={{ color: 'var(--t-text-1)' }}>{method}</p>
+                    <p className="text-xs" style={{ color: 'var(--t-text-4)' }}>{count} pedido{count !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 <p className="text-xl font-black text-blue-600">{formatCurrency(total)}</p>
@@ -64,13 +124,19 @@ export function AccountingSummary({ stats }: AccountingSummaryProps) {
 
       {/* Unidades vendidas por producto */}
       {byProduct.length > 0 && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+        <div
+          className="rounded-2xl p-5"
+          style={{ border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}
+        >
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Package className="h-5 w-5 text-orange-500" />
-              <h3 className="font-bold text-gray-900">Unidades vendidas por producto</h3>
+              <h3 className="font-bold" style={{ color: 'var(--t-text-1)' }}>Unidades vendidas por producto</h3>
             </div>
-            <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-semibold text-gray-500">
+            <span
+              className="rounded-full px-3 py-0.5 text-xs font-semibold"
+              style={{ background: 'var(--t-surface-2)', color: 'var(--t-text-3)' }}
+            >
               {byProduct.length} producto{byProduct.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -78,17 +144,20 @@ export function AccountingSummary({ stats }: AccountingSummaryProps) {
           <div className="space-y-3">
             {byProduct.map(({ name, units }) => (
               <div key={name} className="flex items-center gap-3">
-                <span className="w-6 flex-shrink-0 text-right text-sm font-black text-gray-700">
+                <span className="w-6 flex-shrink-0 text-right text-sm font-black" style={{ color: 'var(--t-text-2)' }}>
                   {units}
                 </span>
                 <div className="flex-1">
                   <div className="mb-1 flex justify-between text-sm">
-                    <span className="font-medium text-gray-800">{name}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="font-medium" style={{ color: 'var(--t-text-2)' }}>{name}</span>
+                    <span className="text-xs" style={{ color: 'var(--t-text-4)' }}>
                       {totalUnits > 0 ? Math.round((units / totalUnits) * 100) : 0}%
                     </span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-full"
+                    style={{ background: 'var(--t-surface-2)' }}
+                  >
                     <div
                       className="h-2 rounded-full bg-orange-500 transition-all duration-500"
                       style={{ width: `${(units / maxUnits) * 100}%` }}
@@ -114,9 +183,12 @@ interface StatCardProps {
 
 function StatCard({ icon, iconBg, label, value, valueColor }: StatCardProps) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+    <div
+      className="rounded-2xl p-5"
+      style={{ border: '1px solid var(--t-border)', background: 'var(--t-surface)' }}
+    >
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-sm" style={{ color: 'var(--t-text-3)' }}>{label}</p>
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${iconBg}`}>
           {icon}
         </div>

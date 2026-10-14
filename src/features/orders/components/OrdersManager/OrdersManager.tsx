@@ -1,21 +1,20 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ShoppingBag, Wifi, RefreshCw, Plus, X, GripVertical } from 'lucide-react';
 import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  MouseSensor,
-  TouchSensor,
-  useDroppable,
-  useDraggable,
-  useSensors,
-  useSensor,
-  pointerWithin,
-} from '@dnd-kit/core';
+  ShoppingBag,
+  Wifi,
+  RefreshCw,
+  Plus,
+  X,
+  CalendarDays,
+  Bike,
+  LayoutGrid,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { DateRangePicker } from '@/components/ui/DateRangePicker/DateRangePicker';
 
 import { useAuth } from '@/features/auth';
 import { useOrderStatuses } from '@/features/order-statuses/hooks/useOrderStatuses';
@@ -23,16 +22,30 @@ import { useProducts } from '@/features/products/hooks/useProducts';
 import { useAdicionales } from '@/features/adicionales/hooks/useAdicionales';
 import { useCategories } from '@/features/categories';
 import { useDomiciliarios } from '@/features/delivery-zones/hooks/useDomiciliarios';
+import { useMesas } from '@/features/delivery-methods/hooks/useMesas';
+import { useRestaurant } from '@/features/restaurants/hooks/useRestaurants';
 import type { Order } from '@/types';
 
 import { useOrders } from '../../hooks/useOrders';
-import { useUpdateOrderStatus } from '../../hooks/useUpdateOrderStatus';
+import { useWaDisconnectAlert } from '../../hooks/useWaDisconnectAlert';
+import { ROUTES } from '@/constants/routes';
+import { PwaControls } from '@/features/pwa/components/PwaControls';
+import { ordersService } from '../../services/orders.service';
+import { useToastStore } from '@/store/toast.store';
+import { getBoardColumn, getOccupiedTables, isOrderFinished, type BoardColumnKey } from '../../helpers/board.helpers';
 import { OrderCard } from '../OrderCard';
-import { OrderDetailModal } from '../OrderDetailModal';
+import { OrderDrawer } from '../OrderDrawer';
 import { ManualOrderModal } from '../ManualOrderModal';
 import { EditOrderModal } from '../EditOrderModal';
+import { DeleteOrderModal } from '../DeleteOrderModal/DeleteOrderModal';
 
-type DateFilter = 'today' | 'month' | 'all';
+import type { DateRange } from '../../hooks/useOrders';
+
+type PresetKey = 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'custom';
+
+interface ActiveRange extends DateRange {
+  preset: PresetKey;
+}
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 
@@ -123,54 +136,6 @@ function ToastContainer({
   );
 }
 
-// ── Droppable column ─────────────────────────────────────────────────────────
-
-function DroppableColumn({
-  statusId,
-  children,
-  color,
-}: {
-  statusId: string;
-  children: React.ReactNode;
-  color: string;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: statusId });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`min-h-24 space-y-3 rounded-2xl p-2 transition-all duration-150 ${isOver ? 'ring-2 ring-offset-2' : ''}`}
-      style={{
-        backgroundColor: `${color}18`,
-        ...(isOver ? { ringColor: color } : {}),
-        outline: isOver ? `2px solid ${color}` : 'none',
-        outlineOffset: isOver ? 2 : 0,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ── Draggable card ────────────────────────────────────────────────────────────
-
-function DraggableCard(props: React.ComponentProps<typeof OrderCard>) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: props.order.id });
-  return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      style={{ opacity: isDragging ? 0.35 : 1, cursor: isDragging ? 'grabbing' : 'grab' }}
-      className="group relative"
-    >
-      <div className="pointer-events-none absolute right-10 top-3 z-10 rounded-lg p-1 text-gray-300 opacity-0 transition-opacity group-hover:text-gray-400 group-hover:opacity-100">
-        <GripVertical className="h-4 w-4" />
-      </div>
-      <OrderCard {...props} />
-    </div>
-  );
-}
-
 // ── Notification sound ────────────────────────────────────────────────────────
 
 let _audioCtx: AudioContext | null = null;
@@ -181,31 +146,38 @@ function getAudioCtx(): AudioContext | null {
   return _audioCtx;
 }
 
+/** Crea y desbloquea el AudioContext — llamar en cualquier gesto del usuario. */
+function unlockAudio() {
+  const ctx = getAudioCtx();
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+}
+
+function doPlay(ctx: AudioContext) {
+  const notes: [number, number][] = [[880, 0], [1108, 0.18]];
+  notes.forEach(([freq, offset]) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const t = ctx.currentTime + offset;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.4, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.start(t);
+    osc.stop(t + 0.5);
+  });
+}
+
 function playNotificationSound() {
   try {
     const ctx = getAudioCtx();
     if (!ctx) return;
-    const doPlay = () => {
-      const notes = [880, 1108];
-      notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        const t = ctx.currentTime + i * 0.18;
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.4, t + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-        osc.start(t);
-        osc.stop(t + 0.5);
-      });
-    };
     if (ctx.state === 'suspended') {
-      ctx.resume().then(doPlay);
+      ctx.resume().then(() => doPlay(ctx));
     } else {
-      doPlay();
+      doPlay(ctx);
     }
   } catch {
     // AudioContext no disponible
@@ -214,181 +186,222 @@ function playNotificationSound() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isToday(isoString: string): boolean {
-  const d = new Date(isoString);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
+function startOfDayISO(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
-function isThisMonth(isoString: string): boolean {
-  const d = new Date(isoString);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+function endOfDayISO(date: Date): string {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
 }
+
+function getPresetRange(preset: Exclude<PresetKey, 'custom'>): DateRange {
+  const now = new Date();
+  if (preset === 'today') return { start: startOfDayISO(now), end: endOfDayISO(now) };
+  if (preset === 'yesterday') {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    return { start: startOfDayISO(y), end: endOfDayISO(y) };
+  }
+  if (preset === 'last7') {
+    const s = new Date(now);
+    s.setDate(s.getDate() - 6);
+    return { start: startOfDayISO(s), end: endOfDayISO(now) };
+  }
+  // thisMonth
+  const m = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { start: startOfDayISO(m), end: endOfDayISO(now) };
+}
+
+
+function formatRangeLabel(range: ActiveRange): string {
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  if (range.preset === 'today') return 'Hoy';
+  if (range.preset === 'yesterday') return 'Ayer';
+  if (range.preset === 'last7') return 'Últ. 7 días';
+  if (range.preset === 'thisMonth') return 'Este mes';
+  return `${fmt(range.start)} – ${fmt(range.end)}`;
+}
+
+// ── Columnas del tablero ──────────────────────────────────────────────────────
+
+const COLUMNS: { key: BoardColumnKey; label: string; empty: string; color: string; icon: typeof ShoppingBag }[] = [
+  { key: 'recoger', label: 'Para llevar', empty: 'No hay pedidos para llevar activos', color: '#2563eb', icon: ShoppingBag },
+  { key: 'domicilio', label: 'Domicilio', empty: 'No hay domicilios activos', color: '#7c3aed', icon: Bike },
+  { key: 'mesa', label: 'Mesa', empty: 'No hay mesas abiertas', color: '#16a34a', icon: LayoutGrid },
+];
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OrdersManager() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const restaurantId = user?.restaurantId ?? '';
+  const dineInEnabled = can('features.dine_in');
 
   const [refreshKey, setRefreshKey] = useState(0);
-  const { orders, isLoading } = useOrders(restaurantId, refreshKey);
+  const [activeRange, setActiveRange] = useState<ActiveRange>(() => ({
+    preset: 'today',
+    ...getPresetRange('today'),
+  }));
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  const { orders, isLoading } = useOrders(restaurantId, activeRange, refreshKey);
   const { data: statuses = [] } = useOrderStatuses(restaurantId);
   const { data: products = [] } = useProducts(restaurantId);
   const { data: adicionales = [] } = useAdicionales(restaurantId);
   const { data: categories = [] } = useCategories(restaurantId);
   const { data: domiciliarios = [] } = useDomiciliarios(restaurantId);
-  const { updateStatus } = useUpdateOrderStatus(restaurantId);
+  const { data: mesas = [] } = useMesas(dineInEnabled ? restaurantId : undefined);
+  const { data: restaurant } = useRestaurant(restaurantId || undefined);
 
-  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const canDelete = user?.role === 'restaurant_admin' || user?.role === 'super_admin';
+
+  // Se guarda el id (no el pedido): el panel siempre muestra la versión en vivo
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ order: Order; addProducts: boolean } | null>(null);
+  const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [manualType, setManualType] = useState<BoardColumnKey | null>(null);
+  const [showFinished, setShowFinished] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [dragError, setDragError] = useState<string | null>(null);
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  // Re-render cada minuto para que "hace X min" de las tarjetas avance
+  const [, setTick] = useState(0);
 
   const knownIdsRef = useRef<Set<string> | null>(null);
+  const announcedIdsRef = useRef<Set<string>>(new Set());
   const toastCounterRef = useRef(0);
+  const prevStatusRef = useRef<Map<string, string>>(new Map());
 
-  const boardScrollRef = useRef<HTMLDivElement>(null);
-  const [scroll, setScroll] = useState({ left: 0, width: 0, client: 0 });
-
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
-  );
+  const { showToast } = useToastStore();
+  const { showAlert: waDisconnected, dismiss: dismissWaAlert } = useWaDisconnectAlert(restaurantId);
 
   const receivedStatusId = statuses.find((s) => s.code === 'received')?.id ?? '';
+  const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s])), [statuses]);
+  const selectedOrder = selectedOrderId ? orders.find((o) => o.id === selectedOrderId) ?? null : null;
+  const occupiedTables = useMemo(() => getOccupiedTables(orders, statuses), [orders, statuses]);
+  const occupiedTableIds = useMemo(() => new Set(occupiedTables.keys()), [occupiedTables]);
 
-  const activeStatuses = statuses
-    .filter((s) => s.isActive)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
-  // Detect new orders
+  // Desbloquear AudioContext en el primer gesto del usuario
+  useEffect(() => {
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('keydown', unlockAudio, { once: true });
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
+
+  // Al cambiar el rango de fechas, resetear la línea de base para no notificar pedidos históricos
+  useEffect(() => {
+    knownIdsRef.current = null;
+  }, [activeRange]);
+
+  // Detect new orders and status changes
   useEffect(() => {
     if (isLoading) return;
     const currentIds = new Set(orders.map((o) => o.id));
 
     if (knownIdsRef.current === null) {
+      // Primera carga: registrar IDs y estados sin notificar
       knownIdsRef.current = currentIds;
+      prevStatusRef.current = new Map(orders.map((o) => [o.id, o.statusId]));
       return;
     }
 
-    const newOrders = orders.filter((o) => !knownIdsRef.current!.has(o.id));
-    if (newOrders.length > 0) playNotificationSound();
-    newOrders.forEach((o) => {
-      const id = ++toastCounterRef.current;
-      setToasts((prev) => [...prev, { id, orderNumber: o.orderNumber }]);
-    });
+    // Pedidos nuevos: solo los que acaban de llegar (estado received) y no se han anunciado aún
+    const newOrders = orders.filter(
+      (o) =>
+        !knownIdsRef.current!.has(o.id) &&
+        !announcedIdsRef.current.has(o.id) &&
+        o.statusId === receivedStatusId,
+    );
+    if (newOrders.length > 0) {
+      newOrders.forEach((o) => announcedIdsRef.current.add(o.id));
+      playNotificationSound();
+      newOrders.forEach((o) => {
+        const id = ++toastCounterRef.current;
+        setToasts((prev) => [...prev, { id, orderNumber: o.orderNumber }]);
+      });
+    }
+
     knownIdsRef.current = currentIds;
-  }, [orders, isLoading]);
+    prevStatusRef.current = new Map(orders.map((o) => [o.id, o.statusId]));
+  }, [orders, isLoading, statuses]);
+
+  // Al tocar el aviso push se llega con ?pedido={id}: se abre el detalle de ese pedido una sola vez
+  const openedFromPushRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || openedFromPushRef.current) return;
+    const url = new URL(window.location.href);
+    const orderId = url.searchParams.get('pedido');
+    if (!orderId) return;
+    openedFromPushRef.current = true;
+    if (orders.some((o) => o.id === orderId)) setSelectedOrderId(orderId);
+    url.searchParams.delete('pedido');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [isLoading, orders]);
 
   const removeToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const syncScroll = useCallback(() => {
-    const el = boardScrollRef.current;
-    if (!el) return;
-    setScroll({ left: el.scrollLeft, width: el.scrollWidth, client: el.clientWidth });
-  }, []);
+  const closeDrawer = useCallback(() => setSelectedOrderId(null), []);
 
-  // Re-medir cuando cargan las columnas (statuses) o cambia el filtro
-  useEffect(() => {
-    const id = setTimeout(syncScroll, 0);
-    window.addEventListener('resize', syncScroll);
-    return () => { clearTimeout(id); window.removeEventListener('resize', syncScroll); };
-  }, [orders, dateFilter, statuses, syncScroll]);
+  // Activos primero (más antiguos arriba: se atienden en orden de llegada); finalizados al final
+  const columns = useMemo(() => {
+    const byColumn = new Map<BoardColumnKey, { order: Order; finished: boolean }[]>(
+      COLUMNS.map((c) => [c.key, []]),
+    );
+    for (const order of orders) {
+      const finished = isOrderFinished(order, statuses);
+      if (finished && !showFinished) continue;
+      byColumn.get(getBoardColumn(order))!.push({ order, finished });
+    }
+    byColumn.forEach((list) => {
+      list.sort((a, b) => Number(a.finished) - Number(b.finished) || a.order.createdAt.localeCompare(b.order.createdAt));
+    });
+    return byColumn;
+  }, [orders, statuses, showFinished]);
 
-  // rAF loop — detecta cambios en scrollLeft sin depender del evento scroll
-  useEffect(() => {
-    let rafId: number;
-    let lastLeft = -1;
-    const tick = () => {
-      const el = boardScrollRef.current;
-      if (el && el.scrollLeft !== lastLeft) {
-        lastLeft = el.scrollLeft;
-        syncScroll();
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [syncScroll]);
+  const visibleColumns = COLUMNS.filter((c) => c.key !== 'mesa' || dineInEnabled || (columns.get('mesa')?.length ?? 0) > 0);
+  const activeCount = orders.filter((o) => !isOrderFinished(o, statuses)).length;
 
-  const hasOverflow = scroll.width > scroll.client;
-  const thumbWpx = hasOverflow ? (scroll.client / scroll.width) * scroll.client : 0;
-  const thumbLpx = hasOverflow
-    ? (scroll.left / (scroll.width - scroll.client)) * (scroll.client - thumbWpx)
-    : 0;
-
-  function handleThumbMouseDown(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startLeft = scroll.left;
-    const scrollRange = scroll.width - scroll.client;
-    const thumbRange = scroll.client - thumbWpx;
-    const onMove = (ev: MouseEvent) => {
-      if (!boardScrollRef.current) return;
-      boardScrollRef.current.scrollLeft = startLeft + ((ev.clientX - startX) / thumbRange) * scrollRange;
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+  function selectPreset(preset: Exclude<PresetKey, 'custom'>) {
+    const range = getPresetRange(preset);
+    setActiveRange({ preset, ...range });
   }
 
-  const filteredOrders = orders.filter((o) => {
-    if (dateFilter === 'today') return isToday(o.createdAt);
-    if (dateFilter === 'month') return isThisMonth(o.createdAt);
-    return true;
-  });
-
-  const ordersByStatus = (statusId: string) =>
-    filteredOrders.filter((o) => o.statusId === statusId);
-
-  async function handleAdvance(orderId: string, nextStatusId: string) {
-    await updateStatus(orderId, nextStatusId);
+  function applyCustomRange(from: string, to: string) {
+    setCustomFrom(from);
+    setCustomTo(to);
+    const start = startOfDayISO(new Date(from + 'T00:00:00'));
+    const end = endOfDayISO(new Date(to + 'T00:00:00'));
+    setActiveRange({ preset: 'custom', start, end });
   }
 
-  // Drag handlers
-  function handleDragStart(event: DragStartEvent) {
-    setActiveOrderId(String(event.active.id));
-    setDragError(null);
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    setActiveOrderId(null);
-    const { active, over } = event;
-    if (!over) return;
-
-    const order = filteredOrders.find((o) => o.id === String(active.id));
-    if (!order) return;
-
-    const newStatusId = String(over.id);
-    if (order.statusId === newStatusId) return;
-
+  async function handleDeleteConfirm(orderId: string, reason: string) {
+    if (!user) return;
+    setIsDeleting(true);
     try {
-      await updateStatus(order.id, newStatusId);
-    } catch {
-      setDragError('No se pudo mover el pedido. Intentá de nuevo.');
-      setTimeout(() => setDragError(null), 3000);
+      const orderNumber = deletingOrder?.orderNumber ?? '';
+      await ordersService.softDelete(restaurantId, orderId, user.uid, reason);
+      setDeletingOrder(null);
+      if (selectedOrderId === orderId) setSelectedOrderId(null);
+      showToast(`Pedido ${orderNumber} eliminado`);
+    } finally {
+      setIsDeleting(false);
     }
   }
-
-  const activeOrder = activeOrderId ? filteredOrders.find((o) => o.id === activeOrderId) : null;
-  const activeOrderStatus = activeOrder
-    ? activeStatuses.find((s) => s.id === activeOrder.statusId)
-    : undefined;
 
   if (!restaurantId) {
     return <p className="text-sm text-red-600">Tu cuenta no tiene un restaurante asignado.</p>;
@@ -403,43 +416,72 @@ export function OrdersManager() {
   }
 
   return (
-    <div className="h-full space-y-5">
+    <div className="flex h-full flex-col gap-4">
+      {/* WA desconectado (espontáneo) */}
+      {waDisconnected && (
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3"
+          style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}
+        >
+          <span className="text-lg">📵</span>
+          <p className="flex-1 text-sm font-medium text-orange-800">
+            WhatsApp desconectado. Los mensajes automáticos no se están enviando.
+          </p>
+          <a
+            href={ROUTES.dashboard.whatsapp}
+            className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600"
+          >
+            Conectar
+          </a>
+          <button
+            onClick={dismissWaAlert}
+            className="flex h-6 w-6 items-center justify-center rounded-full text-orange-400 hover:bg-orange-100 hover:text-orange-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-gray-900">Pedidos en vivo</h2>
+            <h2 className="text-2xl font-bold text-[var(--t-text-1)]">Pedidos en vivo</h2>
             <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
               <Wifi className="h-3 w-3" />
               En vivo
             </span>
           </div>
-          <p className="mt-0.5 text-sm text-gray-500">
-            {filteredOrders.length} pedido{filteredOrders.length !== 1 ? 's' : ''} activos
+          <p className="mt-0.5 text-sm text-[var(--t-text-3)]">
+            {activeCount} pedido{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsManualModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
-          >
-            <Plus className="h-4 w-4" />
-            Pedido manual
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {can('orders.create') && (
+            <button
+              onClick={() => setManualType('recoger')}
+              className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+            >
+              <Plus className="h-4 w-4" />
+              Nuevo pedido
+            </button>
+          )}
           <button
             onClick={playNotificationSound}
             title="Probar sonido"
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-4 py-2 text-sm font-medium text-[var(--t-text-2)] transition-colors hover:bg-[var(--t-surface-2)]"
           >
             🔔
           </button>
+          {/* PWA: instalar la app y avisos con la app cerrada */}
+          <PwaControls />
           <button
             onClick={() => {
               knownIdsRef.current = null;
               setRefreshKey((k) => k + 1);
             }}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-4 py-2 text-sm font-medium text-[var(--t-text-2)] transition-colors hover:bg-[var(--t-surface-2)]"
           >
             <RefreshCw className="h-4 w-4" />
             Refrescar
@@ -448,180 +490,163 @@ export function OrdersManager() {
       </div>
 
       {/* Filtros de fecha */}
-      <div className="flex gap-2">
-        {(
-          [
-            { key: 'today', label: 'Hoy' },
-            { key: 'month', label: 'Este mes' },
-            { key: 'all', label: 'Todos' },
-          ] as { key: DateFilter; label: string }[]
-        ).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setDateFilter(key)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-              dateFilter === key
-                ? 'bg-gray-900 text-white'
-                : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Presets */}
+        <div className="join">
+          {(
+            [
+              { key: 'today', label: 'Hoy' },
+              { key: 'yesterday', label: 'Ayer' },
+              { key: 'last7', label: 'Últ. 7 días' },
+              { key: 'thisMonth', label: 'Este mes' },
+            ] as { key: Exclude<PresetKey, 'custom'>; label: string }[]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => selectPreset(key)}
+              className={`btn join-item btn-sm border-base-300 ${activeRange.preset === key ? 'border-0 text-white' : 'btn-ghost'}`}
+              style={activeRange.preset === key ? { background: '#FF6A1A' } : {}}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom date range picker */}
+        <DateRangePicker
+          from={customFrom}
+          to={customTo}
+          isActive={activeRange.preset === 'custom'}
+          onApply={applyCustomRange}
+        />
+
+        {/* Badge rango activo */}
+        <div className="badge badge-lg gap-1.5 border-orange-200 bg-orange-50 py-3 font-semibold text-orange-600">
+          <CalendarDays className="h-3 w-3" />
+          {formatRangeLabel(activeRange)}
+        </div>
+
+        {/* Entregados, cancelados y mesas liberadas */}
+        <button
+          onClick={() => setShowFinished((v) => !v)}
+          className={`ml-auto flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            showFinished
+              ? 'border-orange-300 bg-orange-50 text-orange-600'
+              : 'border-[var(--t-border)] bg-[var(--t-surface)] text-[var(--t-text-3)] hover:bg-[var(--t-surface-2)]'
+          }`}
+        >
+          {showFinished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          {showFinished ? 'Ocultar finalizados' : 'Ver finalizados'}
+        </button>
       </div>
 
-      {/* Error de drag */}
-      {dragError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {dragError}
-        </div>
-      )}
-
-      {/* Kanban con DnD */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={pointerWithin}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+      {/* Tablero: una columna por tipo de pedido */}
+      <div
+        className="grid min-h-[60vh] flex-1 gap-3"
+        style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 260px), 1fr))` }}
       >
-        {/* Scrollbar custom arriba — solo se muestra cuando hay overflow */}
-        {hasOverflow && (
-          <div
-            style={{ position: 'sticky', top: 0, zIndex: 10, height: 8, background: '#e5e7eb', borderRadius: 999, margin: '12px 0 4px', cursor: 'pointer' }}
-            onClick={(e) => {
-              const el = boardScrollRef.current;
-              if (!el) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              el.scrollLeft = ((e.clientX - rect.left) / rect.width) * (el.scrollWidth - el.clientWidth);
-            }}
-          >
-            <div
-              onMouseDown={handleThumbMouseDown}
-              style={{
-                position: 'absolute', top: 0, height: '100%',
-                background: '#6b7280', borderRadius: 999,
-                width: thumbWpx, left: thumbLpx,
-                cursor: 'grab',
-              }}
-            />
-          </div>
-        )}
+        {visibleColumns.map(({ key, label, empty, color, icon: Icon }) => {
+          const list = columns.get(key) ?? [];
+          const count = list.filter((x) => !x.finished).length;
+          return (
+            <section
+              key={key}
+              aria-label={label}
+              className="flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-[var(--t-border)] bg-[var(--t-surface-2)]/40"
+            >
+              <header className="flex items-center gap-2 border-b border-[var(--t-border)] bg-[var(--t-surface)] px-3 py-2.5">
+                <Icon className="h-4 w-4" style={{ color }} />
+                <span className="text-sm font-bold" style={{ color }}>{label}</span>
+                <span className="rounded-full bg-[var(--t-surface-2)] px-2 py-0.5 text-[11px] font-bold text-[var(--t-text-3)]">{count}</span>
+                {can('orders.create') && (
+                  <button
+                    onClick={() => setManualType(key)}
+                    aria-label={`Nuevo pedido: ${label}`}
+                    className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--t-border)] text-[var(--t-text-3)] transition-colors hover:bg-[var(--t-surface-2)]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </header>
 
-        <style>{`#orders-board::-webkit-scrollbar { display: none; }`}</style>
-        <div
-          id="orders-board"
-          ref={boardScrollRef}
-          className="relative flex gap-4 overflow-x-auto pb-2"
-          style={{ scrollbarWidth: 'none' }}
-        >
-            {activeStatuses.map((status) => {
-              const columnOrders = ordersByStatus(status.id);
-              return (
-                <div key={status.id} className="w-72 flex-shrink-0">
-                  {/* Column header */}
-                  <div className="mb-3 flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: status.color }}
-                    />
-                    <span className="font-semibold text-gray-800">{status.name}</span>
-                    {columnOrders.length > 0 && (
-                      <span className="ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-600">
-                        {columnOrders.length}
-                      </span>
-                    )}
+              <div className="flex-1 overflow-y-auto p-2.5">
+                {list.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-[var(--t-text-4)]">{empty}</p>
+                ) : (
+                  <div
+                    className={key === 'mesa' ? 'grid gap-2' : 'space-y-2'}
+                    style={key === 'mesa' ? { gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))' } : undefined}
+                  >
+                    {list.map(({ order, finished }) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        status={statusById.get(order.statusId)}
+                        selected={order.id === selectedOrderId}
+                        finished={finished}
+                        onOpen={(o) => setSelectedOrderId(o.id)}
+                      />
+                    ))}
                   </div>
-
-                  {/* Column body — droppable */}
-                  <DroppableColumn statusId={status.id} color={status.color}>
-                    {columnOrders.length === 0 ? (
-                      <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-                        <div className="text-center">
-                          <ShoppingBag className="mx-auto mb-2 h-6 w-6 opacity-30" />
-                          <span>Sin pedidos</span>
-                        </div>
-                      </div>
-                    ) : (
-                      columnOrders.map((order) => (
-                        <DraggableCard
-                          key={order.id}
-                          order={order}
-                          status={status}
-                          statuses={activeStatuses}
-                          restaurantId={restaurantId}
-                          domiciliarios={domiciliarios}
-                          onOpen={setSelectedOrder}
-                          onAdvance={handleAdvance}
-                          onEdit={setEditingOrder}
-                        />
-                      ))
-                    )}
-                  </DroppableColumn>
-                </div>
-              );
-            })}
-
-            {activeStatuses.length === 0 && (
-              <div className="flex flex-1 items-center justify-center py-16 text-center">
-                <div>
-                  <ShoppingBag className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-                  <p className="text-gray-500">No hay estados configurados.</p>
-                </div>
+                )}
               </div>
-            )}
-        </div>
+            </section>
+          );
+        })}
+      </div>
 
-        {/* Ghost card mientras se arrastra */}
-        <DragOverlay dropAnimation={null}>
-          {activeOrder ? (
-            <div className="pointer-events-none rotate-1 scale-105 rounded-2xl opacity-95 shadow-2xl">
-              <OrderCard
-                order={activeOrder}
-                status={activeOrderStatus}
-                statuses={activeStatuses}
-                restaurantId={restaurantId}
-                domiciliarios={domiciliarios}
-                onOpen={() => {}}
-                onAdvance={() => {}}
-                onEdit={() => {}}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-
-      {/* Modal de detalle */}
-      <OrderDetailModal
+      {/* Panel lateral del pedido: todas las acciones según el tipo */}
+      <OrderDrawer
         order={selectedOrder}
+        orders={orders}
         statuses={statuses}
-        products={products}
         restaurantId={restaurantId}
-        isOpen={!!selectedOrder}
-        onClose={() => setSelectedOrder(null)}
+        domiciliarios={domiciliarios}
+        mesas={mesas}
+        paymentMethods={restaurant?.paymentMethods}
+        canDelete={canDelete}
+        onClose={closeDrawer}
+        onEdit={(order, options) => setEditing({ order, addProducts: !!options?.addProducts })}
+        onDelete={setDeletingOrder}
       />
 
       {/* Modal editar pedido */}
-      {editingOrder && (
+      {editing && (
         <EditOrderModal
-          order={editingOrder}
+          order={editing.order}
+          initialAddProduct={editing.addProducts}
           restaurantId={restaurantId}
           products={products}
           adicionales={adicionales}
           categories={categories}
-          onClose={() => setEditingOrder(null)}
-          onSaved={() => setEditingOrder(null)}
+          paymentMethods={restaurant?.paymentMethods}
+          onClose={() => setEditing(null)}
+          onSaved={() => setEditing(null)}
         />
       )}
 
       {/* Modal pedido manual */}
       <ManualOrderModal
-        isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
+        isOpen={manualType !== null}
+        initialDeliveryType={manualType ?? 'recoger'}
+        onClose={() => setManualType(null)}
         restaurantId={restaurantId}
         receivedStatusId={receivedStatusId}
         products={products}
         adicionales={adicionales}
         categories={categories}
+        paymentMethods={restaurant?.paymentMethods}
+        mesas={mesas}
+        occupiedTableIds={occupiedTableIds}
+        dineInEnabled={dineInEnabled}
+      />
+
+      {/* Modal eliminar pedido */}
+      <DeleteOrderModal
+        order={deletingOrder}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => setDeletingOrder(null)}
       />
 
       {/* Toasts nuevos pedidos */}

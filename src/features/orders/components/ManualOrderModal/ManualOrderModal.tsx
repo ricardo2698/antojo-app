@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X, Plus, Minus, Trash2, Search, ShoppingBag } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
-import type { Product, Adicional, OrderItem, Additional, Category } from '@/types';
+import type { Product, Adicional, OrderItem, Additional, Category, Mesa, OrderDeliveryType, PaymentMethodConfig } from '@/types';
+import { PaymentMethodPicker } from '@/features/payment-methods/components/PaymentMethodPicker';
+import { getActivePaymentMethods, toOrderPayment } from '@/features/payment-methods/helpers/payment-methods.helpers';
+import { normalizePhone } from '@/lib/customers/phone';
 
 import { ordersService } from '../../services/orders.service';
 
@@ -16,6 +19,13 @@ interface ManualOrderModalProps {
   products: Product[];
   adicionales: Adicional[];
   categories: Category[];
+  paymentMethods?: PaymentMethodConfig[];
+  // Tipo preseleccionado (el "+" de cada columna del tablero)
+  initialDeliveryType?: OrderDeliveryType;
+  // Comer en el local: mesas configuradas y las que ya tienen un pedido abierto
+  mesas?: Mesa[];
+  occupiedTableIds?: Set<string>;
+  dineInEnabled?: boolean;
 }
 
 interface CartLine {
@@ -24,16 +34,12 @@ interface CartLine {
   selectedAdicionales: Adicional[];
 }
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-
-const PAYMENT_METHODS = [
-  { value: 'Efectivo',      emoji: '💵' },
-  { value: 'Transferencia', emoji: '🏧' },
-];
+const sg = "var(--font-sans, sans-serif)";
 
 const DELIVERY_TYPES = [
   { value: 'recoger',   label: 'Recoger',   emoji: '🏪' },
   { value: 'domicilio', label: 'Domicilio',  emoji: '🛵' },
+  { value: 'mesa',      label: 'Mesa',       emoji: '🪑' },
 ] as const;
 
 export function ManualOrderModal({
@@ -44,21 +50,39 @@ export function ManualOrderModal({
   products,
   adicionales,
   categories,
+  paymentMethods,
+  initialDeliveryType = 'recoger',
+  mesas = [],
+  occupiedTableIds,
+  dineInEnabled = false,
 }: ManualOrderModalProps) {
+  const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const [search, setSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [cart, setCart] = useState<CartLine[]>([]);
 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [deliveryType, setDeliveryType] = useState<'recoger' | 'domicilio'>('recoger');
+  const [deliveryType, setDeliveryType] = useState<OrderDeliveryType>(initialDeliveryType);
+  const [tableId, setTableId] = useState('');
   const [address, setAddress] = useState('');
   const [barrio, setBarrio] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+  const [paymentMethodId, setPaymentMethodId] = useState('');
+  const selectedPayment = activePaymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   const [notes, setNotes] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Cada vez que se abre arranca con el tipo de la columna desde la que se abrió
+  useEffect(() => {
+    if (isOpen) setDeliveryType(initialDeliveryType);
+  }, [isOpen, initialDeliveryType]);
+
+  const deliveryOptions = DELIVERY_TYPES.filter((t) => t.value !== 'mesa' || dineInEnabled);
+  const tableOptions = mesas.filter((m) => m.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  const selectedTable = tableOptions.find((m) => m.id === tableId);
+  const isMesa = deliveryType === 'mesa';
 
   const activeProducts = useMemo(() => products.filter((p) => p.isActive && p.isAvailable), [products]);
 
@@ -114,8 +138,8 @@ export function ManualOrderModal({
 
   function reset() {
     setCart([]); setCustomerName(''); setCustomerPhone('');
-    setDeliveryType('recoger'); setAddress(''); setBarrio('');
-    setPaymentMethod('Efectivo'); setNotes(''); setSearch('');
+    setDeliveryType(initialDeliveryType); setTableId(''); setAddress(''); setBarrio('');
+    setPaymentMethodId(''); setNotes(''); setSearch('');
     setSelectedCategoryId(''); setError('');
   }
 
@@ -125,10 +149,13 @@ export function ManualOrderModal({
   }, 0);
 
   async function handleSubmit() {
-    if (!customerName.trim()) { setError('El nombre del cliente es requerido'); return; }
-    if (!customerPhone.trim()) { setError('El teléfono es requerido'); return; }
-    if (cart.length === 0) { setError('Agregá al menos un producto'); return; }
+    if (isMesa && !selectedTable) { setError('Elige la mesa'); return; }
+    // En mesa el nombre y el celular son opcionales: la mesa identifica el pedido
+    if (!isMesa && !customerName.trim()) { setError('El nombre del cliente es requerido'); return; }
+    if (!isMesa && !customerPhone.trim()) { setError('El teléfono es requerido'); return; }
+    if (cart.length === 0) { setError('Agrega al menos un producto'); return; }
     if (deliveryType === 'domicilio' && !address.trim()) { setError('La dirección es requerida para domicilio'); return; }
+    if (!selectedPayment) { setError('Elige un método de pago'); return; }
 
     setError('');
     setIsSaving(true);
@@ -140,15 +167,19 @@ export function ManualOrderModal({
         return { productId: l.product.id, productName: l.product.name, quantity: l.quantity, unitPrice, subtotal: (unitPrice + addPrice) * l.quantity, additionals };
       });
 
+      // Teléfono normalizado: los pedidos manuales también cuentan para la fidelidad del cliente
+      const phoneKey = normalizePhone(customerPhone);
       await ordersService.create({
         restaurantId,
         statusId: receivedStatusId,
-        customerName: customerName.trim(),
+        customerName: customerName.trim() || selectedTable?.name || '',
         customerPhone: customerPhone.trim(),
+        ...(phoneKey ? { customerPhoneKey: phoneKey } : {}),
         deliveryType,
+        ...(isMesa && selectedTable ? { tableId: selectedTable.id, tableName: selectedTable.name } : {}),
         ...(deliveryType === 'domicilio' && address.trim() ? { customerAddress: address.trim() } : {}),
         ...(deliveryType === 'domicilio' && barrio.trim() ? { barrio: barrio.trim() } : {}),
-        paymentMethod,
+        ...toOrderPayment(selectedPayment),
         isPaid: false,
         items,
         subtotal,
@@ -173,24 +204,24 @@ export function ManualOrderModal({
       <div style={{
         position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column',
         width: '100%', maxWidth: 780, maxHeight: '95dvh',
-        background: '#fff', borderRadius: 20, boxShadow: '0 -8px 40px rgba(0,0,0,.18)', overflow: 'hidden',
+        background: 'var(--t-surface)', borderRadius: 20, boxShadow: '0 -8px 40px rgba(0,0,0,.18)', overflow: 'hidden',
         fontFamily: sg,
       }} className="sm:rounded-2xl sm:max-h-[90vh]">
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px', borderBottom: '1px solid #F1EAE3', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px', borderBottom: '1px solid var(--t-border)', flexShrink: 0 }}>
           <div style={{ width: 42, height: 42, borderRadius: 14, background: '#FFF3EA', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
             <ShoppingBag style={{ width: 20, height: 20, color: '#FF6A1A' }} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 17, color: '#1B1512' }}>Pedido manual</div>
-            <div style={{ fontFamily: sg, fontSize: 11, color: '#9a8f86', marginTop: 1 }}>Registrá un pedido directo</div>
+            <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--t-text-1)' }}>Pedido manual</div>
+            <div style={{ fontFamily: sg, fontSize: 11, color: 'var(--t-text-3)', marginTop: 1 }}>Registra un pedido directo</div>
           </div>
           <button
             onClick={onClose}
-            style={{ marginLeft: 'auto', width: 34, height: 34, borderRadius: 10, border: 0, background: '#F5F0EB', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+            style={{ marginLeft: 'auto', width: 34, height: 34, borderRadius: 999, border: 0, background: 'var(--t-surface-2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
           >
-            <X style={{ width: 16, height: 16, color: '#5a5048' }} />
+            <X style={{ width: 16, height: 16, color: 'var(--t-text-2)' }} />
           </button>
         </div>
 
@@ -198,17 +229,17 @@ export function ManualOrderModal({
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
           {/* LEFT — Products */}
-          <div style={{ display: 'flex', flexDirection: 'column', width: '46%', borderRight: '1px solid #F1EAE3', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', width: '46%', borderRight: '1px solid var(--t-border)', overflow: 'hidden' }}>
             {/* Search */}
             <div style={{ padding: '12px 14px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F5F0EB', borderRadius: 12, padding: '9px 12px' }}>
-                <Search style={{ width: 15, height: 15, color: '#9a8f86', flexShrink: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--t-surface-2)', borderRadius: 12, padding: '9px 12px' }}>
+                <Search style={{ width: 15, height: 15, color: 'var(--t-text-3)', flexShrink: 0 }} />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar producto..."
-                  style={{ flex: 1, border: 0, background: 'none', outline: 'none', fontFamily: sg, fontSize: 13, color: '#1B1512' }}
+                  style={{ flex: 1, border: 0, background: 'none', outline: 'none', fontFamily: sg, fontSize: 13, color: 'var(--t-text-1)' }}
                 />
               </div>
             </div>
@@ -221,9 +252,9 @@ export function ManualOrderModal({
                   style={{
                     flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontFamily: sg,
                     fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .12s',
-                    border: selectedCategoryId === '' ? '2px solid #FF6A1A' : '1.5px solid #EFE7DF',
-                    background: selectedCategoryId === '' ? '#FF6A1A' : '#fff',
-                    color: selectedCategoryId === '' ? '#fff' : '#5a5048',
+                    border: selectedCategoryId === '' ? '2px solid #FF6A1A' : '1.5px solid var(--t-border-2)',
+                    background: selectedCategoryId === '' ? '#FF6A1A' : 'var(--t-surface)',
+                    color: selectedCategoryId === '' ? '#fff' : 'var(--t-text-2)',
                   }}
                 >
                   Todos
@@ -237,9 +268,9 @@ export function ManualOrderModal({
                       style={{
                         flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontFamily: sg,
                         fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .12s',
-                        border: active ? '2px solid #FF6A1A' : '1.5px solid #EFE7DF',
-                        background: active ? '#FF6A1A' : '#fff',
-                        color: active ? '#fff' : '#5a5048',
+                        border: active ? '2px solid #FF6A1A' : '1.5px solid var(--t-border-2)',
+                        background: active ? '#FF6A1A' : 'var(--t-surface)',
+                        color: active ? '#fff' : 'var(--t-text-2)',
                       }}
                     >
                       {cat.name}
@@ -255,18 +286,18 @@ export function ManualOrderModal({
                 const line = cart.find((l) => l.product.id === product.id);
                 const avail = getProductAdicionales(product);
                 return (
-                  <div key={product.id} style={{ borderRadius: 14, border: '1.5px solid #EFE7DF', background: '#fff', padding: '10px 12px' }}>
+                  <div key={product.id} style={{ borderRadius: 14, border: '1.5px solid var(--t-border-2)', background: 'var(--t-surface)', padding: '10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#1B1512', marginBottom: 1 }}>{product.name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-text-1)', marginBottom: 1 }}>{product.name}</div>
                         <div style={{ fontSize: 12, color: '#FF6A1A', fontWeight: 700 }}>{formatCurrency(product.price)}</div>
                       </div>
                       {line ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                          <button onClick={() => updateQty(product.id, -1)} style={{ width: 28, height: 28, borderRadius: 999, border: '1.5px solid #EFE7DF', background: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                            <Minus style={{ width: 12, height: 12, color: '#5a5048' }} />
+                          <button onClick={() => updateQty(product.id, -1)} style={{ width: 28, height: 28, borderRadius: 999, border: '1.5px solid var(--t-border-2)', background: 'var(--t-surface)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                            <Minus style={{ width: 12, height: 12, color: 'var(--t-text-2)' }} />
                           </button>
-                          <span style={{ fontWeight: 700, fontSize: 14, color: '#1B1512', minWidth: 18, textAlign: 'center' }}>{line.quantity}</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--t-text-1)', minWidth: 18, textAlign: 'center' }}>{line.quantity}</span>
                           <button onClick={() => updateQty(product.id, 1)} style={{ width: 28, height: 28, borderRadius: 999, border: 0, background: '#FF6A1A', display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: '0 4px 10px -4px rgba(255,106,26,.5)' }}>
                             <Plus style={{ width: 12, height: 12, color: '#fff' }} />
                           </button>
@@ -290,9 +321,9 @@ export function ManualOrderModal({
                               style={{
                                 fontSize: 11, fontFamily: sg, fontWeight: 500,
                                 borderRadius: 999, padding: '3px 9px', cursor: 'pointer',
-                                border: active ? 0 : '1.5px solid #EFE7DF',
-                                background: active ? '#FF6A1A' : '#fff',
-                                color: active ? '#fff' : '#5a5048',
+                                border: active ? 0 : '1.5px solid var(--t-border-2)',
+                                background: active ? '#FF6A1A' : 'var(--t-surface)',
+                                color: active ? '#fff' : 'var(--t-text-2)',
                                 transition: 'all .12s',
                               }}
                             >
@@ -306,30 +337,30 @@ export function ManualOrderModal({
                 );
               })}
               {filteredProducts.length === 0 && (
-                <div style={{ textAlign: 'center', paddingTop: 32, fontFamily: sg, fontSize: 13, color: '#9a8f86' }}>Sin productos</div>
+                <div style={{ textAlign: 'center', paddingTop: 32, fontFamily: sg, fontSize: 13, color: 'var(--t-text-3)' }}>Sin productos</div>
               )}
             </div>
 
             {/* Cart summary */}
             {cart.length > 0 && (
-              <div style={{ flexShrink: 0, borderTop: '1px solid #F1EAE3', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 130, overflowY: 'auto' }}>
+              <div style={{ flexShrink: 0, borderTop: '1px solid var(--t-border)', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 130, overflowY: 'auto' }}>
                 {cart.map((line) => {
                   const addPrice = line.selectedAdicionales.reduce((s, a) => s + a.price, 0);
                   return (
                     <div key={line.product.id} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ flex: 1, fontSize: 12, color: '#1B1512', fontWeight: 500 }}>
-                          {line.product.name} <span style={{ color: '#9a8f86' }}>×{line.quantity}</span>
+                        <span style={{ flex: 1, fontSize: 12, color: 'var(--t-text-1)', fontWeight: 500 }}>
+                          {line.product.name} <span style={{ color: 'var(--t-text-3)' }}>×{line.quantity}</span>
                         </span>
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#FF6A1A' }}>
                           {formatCurrency((line.product.price + addPrice) * line.quantity)}
                         </span>
                         <button onClick={() => removeFromCart(line.product.id)} style={{ border: 0, background: 'none', cursor: 'pointer', padding: 2, display: 'grid', placeItems: 'center' }}>
-                          <Trash2 style={{ width: 13, height: 13, color: '#c9bdb5' }} />
+                          <Trash2 style={{ width: 13, height: 13, color: 'var(--t-text-4)' }} />
                         </button>
                       </div>
                       {line.selectedAdicionales.length > 0 && (
-                        <span style={{ fontSize: 11, color: '#9a8f86' }}>
+                        <span style={{ fontSize: 11, color: 'var(--t-text-3)' }}>
                           {line.selectedAdicionales.map((a) => `+${a.name}`).join(' · ')}
                         </span>
                       )}
@@ -345,81 +376,89 @@ export function ManualOrderModal({
 
             {/* DATOS DEL CLIENTE */}
             <section>
-              <div style={{ fontFamily: sg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: '#4a4540', marginBottom: 10 }}>
+              <div style={{ fontFamily: sg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: 'var(--t-text-2)', marginBottom: 10 }}>
                 Datos del cliente
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <input type="text" placeholder="Nombre completo *" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                  style={{ width: '100%', borderRadius: 12, border: '1.5px solid #EFE7DF', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: '#1B1512', outline: 'none', boxSizing: 'border-box' }} />
-                <input type="tel" placeholder="Celular *" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                  style={{ width: '100%', borderRadius: 12, border: '1.5px solid #EFE7DF', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: '#1B1512', outline: 'none', boxSizing: 'border-box' }} />
+                <input type="text" placeholder={isMesa ? 'Nombre (opcional)' : 'Nombre completo *'} value={customerName} onChange={(e) => setCustomerName(e.target.value)}
+                  style={{ width: '100%', borderRadius: 12, border: '1.5px solid var(--t-input-border)', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: 'var(--t-text-1)', background: 'var(--t-input-bg)', outline: 'none', boxSizing: 'border-box' }} />
+                <input type="tel" placeholder={isMesa ? 'Celular (opcional)' : 'Celular *'} value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
+                  style={{ width: '100%', borderRadius: 12, border: '1.5px solid var(--t-input-border)', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: 'var(--t-text-1)', background: 'var(--t-input-bg)', outline: 'none', boxSizing: 'border-box' }} />
               </div>
             </section>
 
             {/* ENTREGA */}
             <section>
-              <div style={{ fontFamily: sg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: '#4a4540', marginBottom: 10 }}>
+              <div style={{ fontFamily: sg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: 'var(--t-text-2)', marginBottom: 10 }}>
                 Entrega
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {DELIVERY_TYPES.map((t) => {
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${deliveryOptions.length}, 1fr)`, gap: 8 }}>
+                {deliveryOptions.map((t) => {
                   const active = deliveryType === t.value;
                   return (
                     <button key={t.value} type="button" onClick={() => setDeliveryType(t.value)}
-                      style={{ padding: '10px 12px', borderRadius: 12, border: `2px solid ${active ? '#FF6A1A' : '#EFE7DF'}`, background: '#fff', color: active ? '#FF6A1A' : '#5a5048', fontFamily: sg, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all .12s' }}>
+                      style={{ padding: '10px 12px', borderRadius: 999, border: `2px solid ${active ? '#FF6A1A' : 'var(--t-border-2)'}`, background: 'var(--t-surface)', color: active ? '#FF6A1A' : 'var(--t-text-2)', fontFamily: sg, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all .12s' }}>
                       <span>{t.emoji}</span> {t.label}
                     </button>
                   );
                 })}
               </div>
+              {isMesa && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 6, marginTop: 8 }}>
+                  {tableOptions.length === 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--t-text-4)' }}>No hay mesas configuradas.</span>
+                  )}
+                  {tableOptions.map((m) => {
+                    const busy = occupiedTableIds?.has(m.id) ?? false;
+                    const active = tableId === m.id;
+                    return (
+                      <button key={m.id} type="button" disabled={busy} onClick={() => setTableId(m.id)}
+                        style={{ padding: '8px 6px', borderRadius: 12, border: `2px solid ${active ? '#16a34a' : 'var(--t-border-2)'}`, background: active ? '#f0fdf4' : 'var(--t-surface)', color: busy ? 'var(--t-text-4)' : active ? '#15803d' : 'var(--t-text-2)', fontFamily: sg, fontWeight: 700, fontSize: 12, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                        {m.name}
+                        <div style={{ fontSize: 10, fontWeight: 500 }}>{busy ? 'Ocupada' : 'Libre'}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {deliveryType === 'domicilio' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                   <input type="text" placeholder="Dirección *" value={address} onChange={(e) => setAddress(e.target.value)}
-                    style={{ width: '100%', borderRadius: 12, border: '1.5px solid #EFE7DF', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: '#1B1512', outline: 'none', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', borderRadius: 12, border: '1.5px solid var(--t-input-border)', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: 'var(--t-text-1)', background: 'var(--t-input-bg)', outline: 'none', boxSizing: 'border-box' }} />
                   <input type="text" placeholder="Barrio o sector" value={barrio} onChange={(e) => setBarrio(e.target.value)}
-                    style={{ width: '100%', borderRadius: 12, border: '1.5px solid #EFE7DF', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: '#1B1512', outline: 'none', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', borderRadius: 12, border: '1.5px solid var(--t-input-border)', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: 'var(--t-text-1)', background: 'var(--t-input-bg)', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               )}
             </section>
 
             {/* MÉTODO DE PAGO */}
             <section>
-              <div style={{ fontFamily: sg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: '#4a4540', marginBottom: 10 }}>
+              <div style={{ fontFamily: sg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: 'var(--t-text-2)', marginBottom: 10 }}>
                 Método de pago
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {PAYMENT_METHODS.map((m) => {
-                  const active = paymentMethod === m.value;
-                  return (
-                    <button key={m.value} type="button" onClick={() => setPaymentMethod(m.value)}
-                      style={{ padding: '10px 12px', borderRadius: 12, border: `2px solid ${active ? '#FF6A1A' : '#EFE7DF'}`, background: '#fff', color: active ? '#FF6A1A' : '#5a5048', fontFamily: sg, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all .12s' }}>
-                      <span>{m.emoji}</span> {m.value}
-                    </button>
-                  );
-                })}
-              </div>
+              <PaymentMethodPicker methods={activePaymentMethods} value={paymentMethodId} onChange={setPaymentMethodId} />
             </section>
 
             {/* NOTAS */}
             <section>
               <textarea placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-                style={{ width: '100%', borderRadius: 12, border: '1.5px solid #EFE7DF', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: '#1B1512', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', borderRadius: 12, border: '1.5px solid var(--t-input-border)', padding: '10px 13px', fontFamily: sg, fontSize: 13, color: 'var(--t-text-1)', background: 'var(--t-input-bg)', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
             </section>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{ flexShrink: 0, borderTop: '1px solid #F1EAE3', background: '#FAFAF9', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--t-border)', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {error && <p style={{ fontFamily: sg, fontSize: 13, color: '#D8412F', textAlign: 'center', margin: 0 }}>{error}</p>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: '#1B1512' }}>Total</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--t-text-1)' }}>Total</span>
             <span style={{ fontWeight: 700, fontSize: 17, color: '#FF6A1A' }}>{formatCurrency(subtotal)}</span>
           </div>
           <button
             onClick={handleSubmit}
             disabled={isSaving || cart.length === 0}
             style={{
-              width: '100%', border: 0, borderRadius: 14, padding: '14px 0',
+              width: '100%', border: 0, borderRadius: 999, padding: '14px 0',
               fontFamily: sg, fontWeight: 700, fontSize: 15, color: '#fff',
               background: cart.length === 0 || isSaving ? '#d1c5bd' : 'linear-gradient(135deg, #FF8A2B, #FF6A1A)',
               cursor: cart.length === 0 || isSaving ? 'not-allowed' : 'pointer',

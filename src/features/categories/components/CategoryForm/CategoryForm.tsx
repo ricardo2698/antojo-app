@@ -1,11 +1,13 @@
 'use client';
 
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 
 import { useCategoryForm } from '../../hooks/useCategoryForm';
 import { useCreateCategory, useUpdateCategory } from '../../hooks/useCategoryMutations';
+import { useToastStore } from '@/store/toast.store';
 import type { CategoryFormProps } from './CategoryForm.types';
 
 export function CategoryForm({
@@ -21,6 +23,7 @@ export function CategoryForm({
   const createMutation = useCreateCategory(restaurantId);
   const updateMutation = useUpdateCategory(restaurantId);
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const { showToast } = useToastStore();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,8 +31,10 @@ export function CategoryForm({
 
     if (isEditing && category) {
       await updateMutation.mutateAsync({ id: category.id, data: toUpdateData() });
+      showToast('Categoría actualizada');
     } else {
       await createMutation.mutateAsync(toCreateData());
+      showToast('Categoría creada');
     }
     onSuccess();
   }
@@ -71,14 +76,12 @@ export function CategoryForm({
         />
 
         <label className="flex cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={data.isActive}
             onChange={(e) => handleChange('isActive', e.target.checked)}
-            className="h-4 w-4 rounded accent-orange-500"
             disabled={isPending}
           />
-          <span className="text-sm font-medium text-gray-700">Categoría activa</span>
+          <span className="text-sm font-medium text-[var(--t-text-2)]">Categoría activa</span>
         </label>
 
         {mutationError && (
@@ -86,7 +89,7 @@ export function CategoryForm({
         )}
       </div>
 
-      <div className="flex gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+      <div className="flex gap-3 border-t border-[var(--t-border)] px-6 py-4">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={isPending} className="flex-1">
           Cancelar
         </Button>

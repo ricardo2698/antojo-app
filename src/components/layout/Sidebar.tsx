@@ -1,143 +1,123 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth';
+import { Logo, LogoMark } from '@/components/ui/Logo';
+import { useTheme } from '@/components/providers/ThemeProvider';
 import { useRestaurant } from '@/features/restaurants/hooks/useRestaurants';
 import { ROUTES } from '@/constants/routes';
+import { canAccessPath, isEmployeeRole } from '@/lib/permissions/permissions';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
-function BiteLogo() {
-  return (
-    <svg viewBox="0 0 1024 1024" width="30" height="30">
-      <defs>
-        <linearGradient id="sb-g" x1="102" y1="102" x2="922" y2="922" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#FFB02E" />
-          <stop offset="0.55" stopColor="#FF6A1A" />
-          <stop offset="1" stopColor="#EA3B2E" />
-        </linearGradient>
-        <mask id="sb-m">
-          <rect width="1024" height="1024" fill="#fff" />
-          <circle cx="819.2" cy="215" r="307.2" fill="#000" />
-        </mask>
-      </defs>
-      <circle cx="512" cy="512" r="512" fill="url(#sb-g)" mask="url(#sb-m)" />
-    </svg>
-  );
+// ─── Nav types ────────────────────────────────────────────────────────────────
+
+type NavLink = { type: 'link'; href: string; label: string; icon: React.ReactNode };
+type NavGroup = { type: 'group'; id: string; label: string; icon: React.ReactNode; children: { href: string; label: string; icon: React.ReactNode }[] };
+type NavItem = NavLink | NavGroup;
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
+const IcoHome = <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+const IcoPedidos = <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" /></svg>;
+const IcoProductos = <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4" /></svg>;
+const IcoContabilidad =<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3" /></svg>;
+const IcoEntrega = <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" /><path d="M16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" /></svg>;
+const IcoRestaurante = <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+
+const IcoAyuda = <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" /></svg>;
+
+// ─── Nav definitions ──────────────────────────────────────────────────────────
+
+const SUPER_ADMIN_LINKS: NavItem[] = [
+  { type: 'link', href: ROUTES.admin.restaurants, label: 'Restaurantes', icon: <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01" /></svg> },
+  { type: 'link', href: ROUTES.admin.leads, label: 'Inscripciones', icon: <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 5.55 5.55l.98-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg> },
+  { type: 'link', href: ROUTES.admin.plans, label: 'Planes', icon: <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg> },
+  { type: 'link', href: ROUTES.admin.categorias, label: 'Categorías', icon: <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h10M4 18h7" /></svg> },
+];
+
+
+const RESTAURANT_NAV: NavItem[] = [
+  { type: 'link', href: ROUTES.dashboard.root, label: 'Inicio', icon: IcoHome },
+  {
+    type: 'group', id: 'pedidos', label: 'Gestión de pedidos', icon: IcoPedidos,
+    children: [
+      { href: ROUTES.dashboard.pedidos, label: 'Pedidos', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" /></svg> },
+      { href: ROUTES.dashboard.estados, label: 'Estados', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg> },
+    ],
+  },
+  {
+    type: 'group', id: 'productos', label: 'Productos', icon: IcoProductos,
+    children: [
+      { href: ROUTES.dashboard.productos, label: 'Productos', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> },
+      { href: ROUTES.dashboard.categorias, label: 'Categorías', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg> },
+      { href: ROUTES.dashboard.adicionales, label: 'Adicionales', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> },
+      { href: ROUTES.dashboard.promociones, label: 'Promociones', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg> },
+    ],
+  },
+  {
+    type: 'group', id: 'finanzas', label: 'Finanzas', icon: IcoContabilidad,
+    children: [
+      { href: ROUTES.dashboard.contabilidad, label: 'Contabilidad', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+      { href: ROUTES.dashboard.pagos, label: 'Métodos de pago', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
+    ],
+  },
+  {
+    type: 'group', id: 'entrega', label: 'Gestión de entrega', icon: IcoEntrega,
+    children: [
+      { href: ROUTES.dashboard.entrega, label: 'Métodos de entrega', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg> },
+      { href: ROUTES.dashboard.domiciliarios, label: 'Domiciliarios', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+      { href: ROUTES.dashboard.zonas, label: 'Zonas de domicilios', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg> },
+    ],
+  },
+  {
+    type: 'group', id: 'restaurante', label: 'Mi restaurante', icon: IcoRestaurante,
+    children: [
+      { href: ROUTES.dashboard.configuracion, label: 'Configuración', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+      { href: ROUTES.dashboard.equipo, label: 'Equipo', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+      { href: ROUTES.dashboard.impresoras, label: 'Impresoras', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> },
+      { href: ROUTES.dashboard.estacionImpresion, label: 'Estación de impresión', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> },
+    ],
+  },
+  {
+    type: 'group', id: 'notificaciones', label: 'Notificaciones', icon: <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+    children: [
+      { href: ROUTES.dashboard.notificaciones.plantillas, label: 'Plantillas', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
+      { href: ROUTES.dashboard.notificaciones.whatsapp, label: 'Configuración WhatsApp', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> },
+    ],
+  },
+  {
+    type: 'group', id: 'ayuda', label: 'Ayuda', icon: IcoAyuda,
+    children: [
+      { href: ROUTES.dashboard.ayuda, label: 'Centro de ayuda', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg> },
+      { href: ROUTES.dashboard.ayudaChecklist, label: 'Checklist de inicio', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
+      { href: ROUTES.dashboard.ayudaPrimerosPasos, label: 'Primeros pasos', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 12l4-4 4 4 4-4"/></svg> },
+      { href: ROUTES.dashboard.ayudaGestionarPedido, label: 'Gestionar un pedido', icon: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg> },
+    ],
+  },
+];
+
+const ALL_NAV_HREFS = RESTAURANT_NAV.flatMap((item) =>
+  item.type === 'link' ? [item.href] : item.children.map((c) => c.href)
+);
+
+/**
+ * Deja solo los links cuya ruta el usuario puede abrir (según ROUTE_PERMISSIONS);
+ * los grupos que quedan sin hijos no se muestran.
+ */
+function filterNavByPermissions(items: NavItem[], permissions: readonly string[]): NavItem[] {
+  return items.flatMap((item): NavItem[] => {
+    if (item.type === 'link') return canAccessPath(permissions, item.href) ? [item] : [];
+    const children = item.children.filter((c) => canAccessPath(permissions, c.href));
+    return children.length ? [{ ...item, children }] : [];
+  });
 }
 
-const SUPER_ADMIN_LINKS = [
-  {
-    href: ROUTES.admin.restaurants,
-    label: 'Restaurantes',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01" />
-      </svg>
-    ),
-  },
-];
-
-const RESTAURANT_VIEW_LINKS = [
-  {
-    href: ROUTES.dashboard.pedidos,
-    label: 'Pedidos',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.contabilidad,
-    label: 'Contabilidad',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3" />
-      </svg>
-    ),
-  },
-];
-
-const RESTAURANT_LINKS = [
-  {
-    href: ROUTES.dashboard.root,
-    label: 'Inicio',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.pedidos,
-    label: 'Pedidos',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.menu,
-    label: 'Menú',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.estados,
-    label: 'Estados',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.contabilidad,
-    label: 'Contabilidad',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.equipo,
-    label: 'Equipo',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.domicilios,
-    label: 'Domicilios',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
-      </svg>
-    ),
-  },
-  {
-    href: ROUTES.dashboard.configuracion,
-    label: 'Configuración menú',
-    icon: (
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
-  },
-];
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   open?: boolean;
@@ -147,16 +127,91 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open = false, onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, permissions } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const pathname = usePathname();
   const isSuperAdmin = user?.role === 'super_admin';
-  const isViewOnly = user?.role === 'restaurant_view';
-  const links = isSuperAdmin ? SUPER_ADMIN_LINKS : isViewOnly ? RESTAURANT_VIEW_LINKS : RESTAURANT_LINKS;
+  const isEmployee = isEmployeeRole(user?.role);
+  // Un solo menú para admin y empleados: se muestra solo lo que sus permisos permiten
+  const navItems: NavItem[] = isSuperAdmin ? SUPER_ADMIN_LINKS : filterNavByPermissions(RESTAURANT_NAV, permissions);
 
   const { data: restaurant } = useRestaurant(!isSuperAdmin ? user?.restaurantId : undefined);
-
   const initial = (user?.displayName ?? user?.email ?? '?')[0].toUpperCase();
   const restaurantInitial = (restaurant?.name ?? '?')[0].toUpperCase();
+
+  // Accordion state (expanded mode)
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  // Flyout state (collapsed mode)
+  const [flyoutId, setFlyoutId] = useState<string | null>(null);
+  const [flyoutY, setFlyoutY] = useState(0);
+  const flyoutRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open the active group in expanded mode
+  useEffect(() => {
+    for (const item of RESTAURANT_NAV) {
+      if (item.type === 'group' && item.children.some(c => pathname.startsWith(c.href))) {
+        setOpenGroup(item.id);
+        return;
+      }
+    }
+  }, [pathname]);
+
+  // Close flyout on outside click
+  useEffect(() => {
+    if (!flyoutId) return;
+    function handle(e: MouseEvent) {
+      if (flyoutRef.current && !flyoutRef.current.contains(e.target as Node)) {
+        setFlyoutId(null);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [flyoutId]);
+
+  // Close flyout when expanding sidebar
+  useEffect(() => {
+    if (!collapsed) setFlyoutId(null);
+  }, [collapsed]);
+
+  function matchesPath(href: string) {
+    return pathname === href || (href !== ROUTES.dashboard.root && pathname.startsWith(`${href}/`));
+  }
+
+  // Gana el link más específico: en /dashboard/configuracion/impresoras solo se marca "Impresoras"
+  function isActive(href: string) {
+    return matchesPath(href) && !ALL_NAV_HREFS.some((h) => h.length > href.length && h.startsWith(href) && matchesPath(h));
+  }
+
+  function isGroupActive(item: NavGroup) {
+    return item.children.some(c => isActive(c.href));
+  }
+
+  function handleGroupClick(item: NavGroup, e: React.MouseEvent) {
+    if (collapsed) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setFlyoutY(rect.top);
+      setFlyoutId(flyoutId === item.id ? null : item.id);
+    } else {
+      setOpenGroup(openGroup === item.id ? null : item.id);
+    }
+  }
+
+  const flyoutGroup = flyoutId ? RESTAURANT_NAV.find(i => i.type === 'group' && i.id === flyoutId) as NavGroup | undefined : undefined;
+
+  const linkStyle = (active: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center',
+    gap: collapsed ? 0 : 12,
+    justifyContent: collapsed ? 'center' : 'flex-start',
+    padding: collapsed ? '11px 0' : '11px 14px',
+    borderRadius: 11, fontWeight: active ? 600 : 500, fontSize: 14, textDecoration: 'none',
+    transition: 'background .15s, color .15s, box-shadow .15s',
+    background: active ? 'linear-gradient(135deg, rgba(255,138,43,.25), rgba(234,59,46,.16))' : 'transparent',
+    boxShadow: active && !collapsed ? 'inset 3px 0 0 #FF6A1A' : 'none',
+    color: active ? '#fff' : 'var(--t-sb-muted)',
+    cursor: 'pointer', border: 'none', width: '100%', fontFamily: sg,
+    whiteSpace: 'nowrap', overflow: 'hidden',
+  });
 
   return (
     <>
@@ -169,177 +224,274 @@ export function Sidebar({ open = false, onClose, collapsed = false, onToggleColl
         />
       )}
 
-    <aside
-      className={`flex flex-shrink-0 flex-col fixed inset-y-0 left-0 z-50 md:static md:z-auto transition-all duration-300 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-      style={{
-        width: collapsed ? 68 : 260,
-        background: 'radial-gradient(120% 60% at 20% 0%, #3a2417, #1B1512 55%)',
-        minHeight: '100vh',
-        padding: collapsed ? '26px 10px' : '26px 18px',
-        fontFamily: sg,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 11, padding: '0 8px', marginBottom: 6 }}>
-        <BiteLogo />
-        {!collapsed && (
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-.02em', color: '#FBF6F1', lineHeight: 1 }}>
-              Antojo<span style={{ color: '#FF6A1A' }}>.</span>
+      <aside
+        className={`flex flex-shrink-0 flex-col fixed inset-y-0 left-0 z-50 md:static md:z-auto transition-all duration-300 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        style={{
+          width: collapsed ? 68 : 260,
+          background: 'radial-gradient(120% 60% at 20% 0%, var(--t-sb-from), var(--t-sb-to) 55%)',
+          minHeight: '100vh',
+          padding: collapsed ? '26px 10px' : '26px 18px',
+          fontFamily: sg,
+          overflow: 'visible',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px', marginBottom: 6 }}>
+          {collapsed ? (
+            <LogoMark style={{ width: 30, height: 30, color: '#FF6A1A' }} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Logo variant="dark" size={15} />
+              {isSuperAdmin && <div style={{ fontFamily: sm, fontSize: 9, letterSpacing: '.12em', color: '#FF8A3D', marginTop: 4 }}>SUPER ADMIN</div>}
+              {isEmployee && <div style={{ fontFamily: sm, fontSize: 9, letterSpacing: '.12em', color: '#9a8f86', marginTop: 4 }}>EMPLEADO</div>}
             </div>
-            {isSuperAdmin && (
-              <div style={{ fontFamily: sm, fontSize: 9, letterSpacing: '.12em', color: '#FF8A3D', marginTop: 3 }}>
-                SUPER ADMIN
-              </div>
-            )}
-            {isViewOnly && (
-              <div style={{ fontFamily: sm, fontSize: 9, letterSpacing: '.12em', color: '#9a8f86', marginTop: 3 }}>
-                SOLO LECTURA
+          )}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'var(--t-sb-border)', margin: '12px 8px' }} />
+
+        {/* Restaurant chip */}
+        {!isSuperAdmin && restaurant && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 11,
+            padding: collapsed ? '11px 4px' : '11px 12px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            borderRadius: 13, background: 'var(--t-sb-glass)', border: '1px solid var(--t-sb-border)',
+            marginBottom: 20,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+              background: restaurant.logo ? '#fff' : 'linear-gradient(135deg, #FFB02E, #EA3B2E)',
+              display: 'grid', placeItems: 'center',
+              fontWeight: 700, fontSize: 16, color: '#fff', position: 'relative',
+            }}>
+              {restaurant.logo ? (
+                <Image src={restaurant.logo} alt={restaurant.name} fill style={{ objectFit: 'cover' }} />
+              ) : restaurantInitial}
+            </div>
+            {!collapsed && (
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#fbf6f1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{restaurant.name}</div>
+                <div style={{ fontFamily: sm, fontSize: 10, color: restaurant.isActive ? '#7BD88F' : 'var(--t-sb-muted)' }}>
+                  {restaurant.isActive ? '● Abierto' : '● Cerrado'}
+                </div>
               </div>
             )}
           </div>
         )}
-      </div>
 
-      {/* Divider */}
-      <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '22px 8px' }} />
-
-      {/* Restaurant selector */}
-      {!isSuperAdmin && restaurant && (
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', gap: 11,
-            padding: collapsed ? '11px 4px' : '11px 12px',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            borderRadius: 13, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)',
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0, overflow: 'hidden',
-              background: restaurant.logo ? '#fff' : 'linear-gradient(135deg, #FFB02E, #EA3B2E)',
+        {/* Compact user info — solo en modo expandido */}
+        {!isSuperAdmin && !collapsed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px 14px' }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+              background: 'linear-gradient(135deg, #FFB02E, #EA3B2E)',
               display: 'grid', placeItems: 'center',
-              fontWeight: 700, fontSize: 16, color: '#fff', position: 'relative',
-            }}
-          >
-            {restaurant.logo ? (
-              <Image src={restaurant.logo} alt={restaurant.name} fill style={{ objectFit: 'contain', padding: 4 }} />
-            ) : (
-              restaurantInitial
-            )}
-          </div>
-          {!collapsed && (
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: '#fbf6f1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {restaurant.name}
-              </div>
-              <div style={{ fontFamily: sm, fontSize: 10, color: restaurant.isActive ? '#7BD88F' : '#b8aaa0' }}>
-                {restaurant.isActive ? '● Abierto' : '● Cerrado'}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Nav */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {links.map(({ href, label, icon }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              title={collapsed ? label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center',
-                gap: collapsed ? 0 : 12,
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                padding: collapsed ? '11px 0' : '11px 14px',
-                borderRadius: 11, fontWeight: 500, fontSize: 14, textDecoration: 'none',
-                transition: 'background .15s, color .15s',
-                background: active ? 'linear-gradient(135deg, rgba(255,138,43,.22), rgba(234,59,46,.14))' : 'transparent',
-                color: active ? '#fff' : '#b8aaa0',
-              }}
-            >
-              {icon}
-              {!collapsed && label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Bottom */}
-      <div style={{ marginTop: 'auto' }}>
-        {/* Toggle collapse — solo desktop */}
-        <button
-          onClick={onToggleCollapse}
-          className="hidden md:flex"
-          style={{
-            alignItems: 'center', justifyContent: 'center',
-            width: '100%', padding: '9px 0', marginBottom: 8,
-            borderRadius: 11, border: 'none', background: 'rgba(255,255,255,.06)',
-            cursor: 'pointer', color: '#b8aaa0', transition: 'background .15s',
-          }}
-          title={collapsed ? 'Expandir' : 'Contraer'}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform .3s' }}>
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-          {!collapsed && <span style={{ fontFamily: sg, fontSize: 12, marginLeft: 6 }}>Contraer</span>}
-        </button>
-
-        {!collapsed && (
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', gap: 11, padding: '12px 10px',
-              borderRadius: 12, background: 'rgba(255,255,255,.05)',
-            }}
-          >
-            <div
-              style={{
-                width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                background: 'linear-gradient(135deg, #FFB02E, #EA3B2E)',
-                display: 'grid', placeItems: 'center',
-                fontWeight: 700, fontSize: 14, color: '#fff',
-              }}
-            >
+              fontWeight: 700, fontSize: 10, color: '#fff',
+            }}>
               {initial}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#fbf6f1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 12, color: 'rgba(251,246,241,.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.displayName ?? 'Admin'}
               </div>
-              <div style={{ fontFamily: sm, fontSize: 10, color: '#b8aaa0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontFamily: sm, fontSize: 10, color: 'var(--t-sb-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.email}
               </div>
             </div>
           </div>
         )}
 
-        <button
-          onClick={() => signOut()}
-          title={collapsed ? 'Cerrar sesión' : undefined}
+        {/* Nav */}
+        <nav className="sb-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, overflowY: 'auto', overflowX: 'visible' }}>
+          {navItems.map((item) => {
+            if (item.type === 'link') {
+              const active = isActive(item.href);
+              return (
+                <Link key={item.href} href={item.href} onClick={onClose} title={collapsed ? item.label : undefined} style={linkStyle(active)}>
+                  {item.icon}
+                  {!collapsed && item.label}
+                </Link>
+              );
+            }
+
+            // Group
+            const groupActive = isGroupActive(item);
+            const isOpen = openGroup === item.id;
+
+            return (
+              <div key={item.id}>
+                <button
+                  onClick={(e) => handleGroupClick(item, e)}
+                  title={collapsed ? item.label : undefined}
+                  style={{
+                    ...linkStyle(groupActive && collapsed),
+                    justifyContent: collapsed ? 'center' : 'space-between',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 12, minWidth: 0, overflow: 'hidden' }}>
+                    <span style={{ color: groupActive ? '#FF6A1A' : 'inherit', display: 'flex', flexShrink: 0 }}>{item.icon}</span>
+                    {!collapsed && <span style={{ color: groupActive ? '#fff' : 'var(--t-sb-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>}
+                  </span>
+                  {!collapsed && (
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ flexShrink: 0, color: 'var(--t-sb-muted)', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }}>
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Accordion children (expanded mode) */}
+                {!collapsed && isOpen && (
+                  <div style={{ marginLeft: 16, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {item.children.map(child => {
+                      const active = isActive(child.href);
+                      return (
+                        <Link key={child.href} href={child.href} onClick={onClose} style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '8px 14px', borderRadius: 9,
+                          fontSize: 13, fontWeight: active ? 600 : 400, textDecoration: 'none',
+                          color: active ? '#fff' : 'var(--t-sb-muted)',
+                          background: active ? 'rgba(255,138,43,.18)' : 'transparent',
+                          transition: 'background .12s, color .12s',
+                        }}>
+                          <span style={{ color: active ? '#FF6A1A' : 'var(--t-sb-muted)', opacity: active ? 1 : 0.6, display: 'flex', flexShrink: 0 }}>{child.icon}</span>
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Bottom */}
+        <div style={{ marginTop: 12, flexShrink: 0 }}>
+          {collapsed ? (
+            <>
+              <button
+                onClick={onToggleCollapse}
+                className="hidden md:flex"
+                style={{ ...linkStyle(false), justifyContent: 'center', marginBottom: 2 }}
+                title="Expandir"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <button onClick={toggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+                style={{ ...linkStyle(false), justifyContent: 'center' }}>
+                {theme === 'dark'
+                  ? <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+                  : <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+                }
+              </button>
+              <button onClick={() => signOut()} title="Cerrar sesión"
+                style={{ ...linkStyle(false), justifyContent: 'center', marginTop: 2 }}>
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                </svg>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Fila: Contraer + Modo oscuro */}
+              <div className="hidden md:flex" style={{ gap: 6, marginBottom: 4 }}>
+                <button
+                  onClick={onToggleCollapse}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '9px 14px', borderRadius: 11, border: 'none',
+                    background: 'var(--t-sb-glass)', cursor: 'pointer',
+                    color: 'var(--t-sb-muted)', fontFamily: sg, fontSize: 13,
+                    transition: 'background .15s',
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: 'rotate(180deg)' }}>
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                  Contraer
+                </button>
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+                  style={{
+                    width: 38, height: 38, flexShrink: 0, borderRadius: 11,
+                    border: 'none', background: 'var(--t-sb-glass)',
+                    cursor: 'pointer', color: 'var(--t-sb-muted)',
+                    display: 'grid', placeItems: 'center',
+                    transition: 'background .15s',
+                  }}
+                >
+                  {theme === 'dark'
+                    ? <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+                    : <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+                  }
+                </button>
+              </div>
+              <button onClick={() => signOut()} style={{ ...linkStyle(false) }}>
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                </svg>
+                Cerrar sesión
+              </button>
+            </>
+          )}
+        </div>
+      </aside>
+
+      {/* Flyout (collapsed mode) */}
+      {collapsed && flyoutGroup && (
+        <div
+          ref={flyoutRef}
           style={{
-            display: 'flex', alignItems: 'center',
-            gap: collapsed ? 0 : 12,
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            padding: collapsed ? '11px 0' : '11px 14px',
-            borderRadius: 11, fontWeight: 500, fontSize: 14, color: '#b8aaa0',
-            background: 'none', border: 'none', cursor: 'pointer', width: '100%',
-            marginTop: 6, fontFamily: sg, transition: 'color .15s',
+            position: 'fixed',
+            left: 76,
+            top: flyoutY - 8,
+            zIndex: 200,
+            background: 'var(--t-surface)',
+            border: '1px solid var(--t-border)',
+            borderRadius: 14,
+            boxShadow: '0 8px 32px -8px rgba(0,0,0,.3)',
+            minWidth: 210,
+            overflow: 'hidden',
           }}
         >
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-          </svg>
-          {!collapsed && 'Cerrar sesión'}
-        </button>
-      </div>
-    </aside>
+          <div style={{ padding: '10px 16px 6px', fontFamily: sm, fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: 'var(--t-text-3)', textTransform: 'uppercase' }}>
+            {flyoutGroup.label}
+          </div>
+          {flyoutGroup.children.map(child => {
+            const active = isActive(child.href);
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={() => { setFlyoutId(null); onClose?.(); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 16px', fontSize: 14, fontWeight: active ? 600 : 400,
+                  textDecoration: 'none', fontFamily: sg,
+                  color: active ? '#FF6A1A' : 'var(--t-text-1)',
+                  background: active ? 'rgba(255,106,26,.07)' : 'transparent',
+                  transition: 'background .12s',
+                }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <span style={{ color: active ? '#FF6A1A' : 'var(--t-text-3)', display: 'flex', flexShrink: 0 }}>{child.icon}</span>
+                {child.label}
+              </Link>
+            );
+          })}
+          <div style={{ height: 6 }} />
+        </div>
+      )}
     </>
   );
 }

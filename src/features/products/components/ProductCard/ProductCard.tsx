@@ -1,14 +1,15 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Edit2, Trash2, Package, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
+import { Edit2, Trash2, Package, Eye, EyeOff, ChevronUp, ChevronDown, ZoomIn } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/Tooltip';
 import type { ProductCardProps } from './ProductCard.types';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
 export function ProductCard({
   product,
@@ -27,9 +28,19 @@ export function ProductCard({
 }: ProductCardProps) {
   const { id, name, price, image, adicionalIds, isActive, isAvailable } = product;
 
+  const [lightbox, setLightbox] = useState(false);
+  const [imgHover, setImgHover] = useState(false);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [lightbox]);
+
   const iconBtn: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: 34, height: 34, borderRadius: 9, border: 'none',
+    width: 34, height: 34, borderRadius: 999, border: 'none',
     background: 'transparent', cursor: 'pointer', transition: 'background .12s',
   };
 
@@ -38,7 +49,7 @@ export function ProductCard({
       style={{
         fontFamily: sg,
         display: 'flex', alignItems: 'center', gap: 14,
-        background: '#fff', border: '1px solid #EFE7DF', borderRadius: 16, padding: '12px 16px',
+        background: 'var(--t-surface)', border: '1px solid var(--t-border-2)', borderRadius: 16, padding: '12px 16px',
         opacity: (!isActive || isMoving) ? 0.65 : 1,
         transition: 'box-shadow .18s, opacity .2s',
       }}
@@ -49,34 +60,34 @@ export function ProductCard({
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         <Tooltip content="Mover arriba" side="left">
           <button
-            onClick={() => onMoveUp(index)}
-            disabled={isFirst || isMoving}
+            onClick={() => onMoveUp?.(index)}
+            disabled={isFirst || isMoving || !onMoveUp}
             style={{
               ...iconBtn,
-              color: isFirst ? '#d8ccc2' : '#9a8f86',
+              color: isFirst ? 'var(--t-text-4)' : 'var(--t-text-3)',
               cursor: isFirst ? 'not-allowed' : 'pointer',
             }}
-            onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
             <ChevronUp className="h-4 w-4" />
           </button>
         </Tooltip>
 
-        <span style={{ fontFamily: sm, fontSize: 11, fontWeight: 700, color: '#c9a78f', lineHeight: 1 }}>
+        <span style={{ fontFamily: sm, fontSize: 11, fontWeight: 700, color: 'var(--t-text-4)', lineHeight: 1 }}>
           {index + 1}
         </span>
 
         <Tooltip content="Mover abajo" side="left">
           <button
-            onClick={() => onMoveDown(index)}
-            disabled={isLast || isMoving}
+            onClick={() => onMoveDown?.(index)}
+            disabled={isLast || isMoving || !onMoveDown}
             style={{
               ...iconBtn,
-              color: isLast ? '#d8ccc2' : '#9a8f86',
+              color: isLast ? 'var(--t-text-4)' : 'var(--t-text-3)',
               cursor: isLast ? 'not-allowed' : 'pointer',
             }}
-            onMouseEnter={(e) => { if (!isLast) (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { if (!isLast) (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
             <ChevronDown className="h-4 w-4" />
@@ -86,13 +97,26 @@ export function ProductCard({
 
       {/* Imagen */}
       <div
+        onClick={() => image && setLightbox(true)}
+        onMouseEnter={() => image && setImgHover(true)}
+        onMouseLeave={() => setImgHover(false)}
         style={{
           position: 'relative', width: 64, height: 64, flexShrink: 0,
           borderRadius: 12, overflow: 'hidden', background: '#FFF1E4',
+          cursor: image ? 'zoom-in' : 'default',
         }}
       >
         {image ? (
-          <Image src={image} alt={name} fill className="object-cover" />
+          <>
+            <Image src={image} alt={name} fill className="object-cover" style={{ transition: 'transform .2s', transform: imgHover ? 'scale(1.06)' : 'scale(1)' }} />
+            <div style={{
+              position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+              background: imgHover ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0)',
+              transition: 'background .2s',
+            }}>
+              <ZoomIn style={{ width: 18, height: 18, color: '#fff', opacity: imgHover ? 1 : 0, transition: 'opacity .2s' }} />
+            </div>
+          </>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
             <Package style={{ width: 28, height: 28, color: '#FFB02E', opacity: 0.5 }} />
@@ -100,10 +124,36 @@ export function ProductCard({
         )}
       </div>
 
+      {/* Lightbox */}
+      {lightbox && image && (
+        <div
+          onClick={() => setLightbox(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: 24, cursor: 'zoom-out',
+          }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '80vh', width: '100%', height: '100%' }}>
+            <Image
+              src={image}
+              alt={name}
+              fill
+              style={{ objectFit: 'contain', borderRadius: 12 }}
+              sizes="90vw"
+            />
+          </div>
+          <p style={{ marginTop: 16, fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)', fontFamily: sg, textAlign: 'center' }}>
+            {name}
+          </p>
+        </div>
+      )}
+
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: '#1B1512' }}>{name}</span>
+          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--t-text-1)' }}>{name}</span>
 
           {category && (
             <span style={{ background: 'rgba(255,106,26,.12)', color: '#FF6A1A', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 9px' }}>
@@ -111,7 +161,7 @@ export function ProductCard({
             </span>
           )}
           {!isActive && (
-            <span style={{ background: '#EDE7E0', color: '#8a7f76', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '2px 9px' }}>
+            <span style={{ background: 'var(--t-surface-2)', color: 'var(--t-text-3)', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '2px 9px' }}>
               Inactivo
             </span>
           )}
@@ -125,7 +175,7 @@ export function ProductCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontWeight: 700, fontSize: 14, color: '#FF6A1A' }}>{formatCurrency(price)}</span>
           {adicionalIds.length > 0 && (
-            <span style={{ fontFamily: sm, fontSize: 11, color: '#b8aaa0' }}>
+            <span style={{ fontFamily: sm, fontSize: 11, color: 'var(--t-text-4)' }}>
               {adicionalIds.length} adicional{adicionalIds.length !== 1 ? 'es' : ''}
             </span>
           )}
@@ -134,35 +184,40 @@ export function ProductCard({
 
       {/* Acciones */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        {onToggleAvailable && (
         <Tooltip content={isAvailable ? 'Marcar no disponible' : 'Marcar disponible'}>
           <button
-            onClick={() => onToggleAvailable(id, !isAvailable)}
+            onClick={() => onToggleAvailable?.(id, !isAvailable)}
             disabled={isToggling}
             style={{ ...iconBtn, opacity: isToggling ? 0.5 : 1 }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
             {isAvailable
               ? <Eye style={{ width: 16, height: 16, color: '#3F9E6A' }} />
-              : <EyeOff style={{ width: 16, height: 16, color: '#b8aaa0' }} />
+              : <EyeOff style={{ width: 16, height: 16, color: 'var(--t-text-4)' }} />
             }
           </button>
         </Tooltip>
+        )}
 
+        {onEdit && (
         <Tooltip content="Editar">
           <button
-            onClick={() => onEdit(product)}
+            onClick={() => onEdit?.(product)}
             style={iconBtn}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F1EAE3'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--t-surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
-            <Edit2 style={{ width: 15, height: 15, color: '#8a7f76' }} />
+            <Edit2 style={{ width: 15, height: 15, color: 'var(--t-text-3)' }} />
           </button>
         </Tooltip>
+        )}
 
+        {onDelete && (
         <Tooltip content="Eliminar">
           <button
-            onClick={() => onDelete(id, name)}
+            onClick={() => onDelete?.(id, name)}
             disabled={isDeleting}
             style={{ ...iconBtn, opacity: isDeleting ? 0.5 : 1 }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FDF1EF'; }}
@@ -171,6 +226,7 @@ export function ProductCard({
             <Trash2 style={{ width: 15, height: 15, color: '#D8412F' }} />
           </button>
         </Tooltip>
+        )}
       </div>
     </div>
   );

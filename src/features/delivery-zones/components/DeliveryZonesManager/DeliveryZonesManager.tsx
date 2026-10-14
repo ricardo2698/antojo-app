@@ -4,6 +4,8 @@ import { useState } from 'react';
 
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/features/auth';
+import { useToastStore } from '@/store/toast.store';
+import { useConfirmStore } from '@/store/confirm.store';
 import type { DeliveryZone } from '@/types';
 
 import { useDeliveryZones } from '../../hooks/useDeliveryZones';
@@ -13,14 +15,8 @@ import {
   useDeleteDeliveryZone,
 } from '../../hooks/useDeliveryZoneMutations';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
-
-const COLOR_PRIMARY = '#FF6A1A';
-const COLOR_BG = '#FBF8F5';
-const COLOR_BORDER = '#EFE7DF';
-const COLOR_DARK = '#1B1512';
-const COLOR_MUTED = '#9a8f86';
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
 interface ZoneFormState {
   name: string;
@@ -30,7 +26,9 @@ interface ZoneFormState {
 const emptyForm: ZoneFormState = { name: '', price: '' };
 
 export function DeliveryZonesManager() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
+  const canCreate = can('delivery_zones.create');
+  const canUpdate = can('delivery_zones.update');
   const restaurantId = user?.restaurantId ?? '';
 
   const { data: zones = [], isLoading: zonesLoading, error } = useDeliveryZones(restaurantId || undefined);
@@ -45,6 +43,8 @@ export function DeliveryZonesManager() {
   const [formError, setFormError] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { showToast } = useToastStore();
+  const { showConfirm } = useConfirmStore();
 
   function openAdd() {
     setEditing(undefined);
@@ -71,11 +71,12 @@ export function DeliveryZonesManager() {
     const name = form.name.trim();
     const price = parseFloat(form.price);
     if (!name) { setFormError('El nombre es requerido'); return; }
-    if (isNaN(price) || price < 0) { setFormError('Ingresá un precio válido'); return; }
+    if (isNaN(price) || price < 0) { setFormError('Ingresa un precio válido'); return; }
 
     setFormError('');
     if (editing) {
       await updateZone.mutateAsync({ id: editing.id, data: { name, price } });
+      showToast(`Zona "${name}" actualizada`);
     } else {
       await createZone.mutateAsync({
         restaurantId,
@@ -84,6 +85,7 @@ export function DeliveryZonesManager() {
         isActive: true,
         sortOrder: zones.length + 1,
       });
+      showToast(`Zona "${name}" creada`);
     }
     cancelForm();
   }
@@ -92,16 +94,18 @@ export function DeliveryZonesManager() {
     setTogglingId(zone.id);
     try {
       await updateZone.mutateAsync({ id: zone.id, data: { isActive: !zone.isActive } });
+      showToast(zone.isActive ? `"${zone.name}" desactivada` : `"${zone.name}" activada`);
     } finally {
       setTogglingId(null);
     }
   }
 
   async function handleDelete(zone: DeliveryZone) {
-    if (!confirm(`¿Eliminar la zona "${zone.name}"?`)) return;
+    if (!await showConfirm({ message: `¿Eliminar la zona "${zone.name}"? Esta acción no se puede deshacer.` })) return;
     setDeletingId(zone.id);
     try {
       await deleteZone.mutateAsync(zone.id);
+      showToast(`"${zone.name}" eliminada`);
     } finally {
       setDeletingId(null);
     }
@@ -139,19 +143,20 @@ export function DeliveryZonesManager() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: COLOR_DARK, letterSpacing: '-.02em' }}>
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--t-text-1)', letterSpacing: '-.02em' }}>
             Zonas de domicilio
           </h2>
-          <p style={{ margin: '4px 0 0', fontSize: 14, color: COLOR_MUTED }}>
-            Definí los barrios o sectores con su precio de envío
+          <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--t-text-3)' }}>
+            Define los barrios o sectores con su precio de envío
           </p>
         </div>
+        {canCreate && (
         <button
           onClick={openAdd}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 18px', borderRadius: 12, border: 'none',
-            background: COLOR_PRIMARY, color: '#fff',
+            padding: '10px 18px', borderRadius: 999, border: 'none',
+            background: '#FF6A1A', color: '#fff',
             fontFamily: sg, fontWeight: 700, fontSize: 14, cursor: 'pointer',
           }}
         >
@@ -160,116 +165,102 @@ export function DeliveryZonesManager() {
           </svg>
           Nueva zona
         </button>
+        )}
       </div>
 
-      {/* Formulario inline */}
+      {/* Modal */}
       {showForm && (
-        <section style={{ background: '#fff', border: `1.5px solid ${COLOR_PRIMARY}`, borderRadius: 16, padding: 20 }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: COLOR_DARK }}>
-            {editing ? `Editar zona: ${editing.name}` : 'Nueva zona'}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: COLOR_MUTED, textTransform: 'uppercase', marginBottom: 6 }}>
-                Nombre del sector / barrio
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Ej: Centro, Laureles, Envigado..."
-                style={{
-                  width: '100%', border: `1.5px solid ${COLOR_BORDER}`, borderRadius: 10,
-                  padding: '10px 12px', fontSize: 14, fontFamily: sg, color: COLOR_DARK,
-                  outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: COLOR_MUTED, textTransform: 'uppercase', marginBottom: 6 }}>
-                Precio del domicilio ($)
-              </label>
-              <input
-                type="number"
-                value={form.price}
-                onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
-                placeholder="Ej: 5000"
-                min="0"
-                style={{
-                  width: '100%', border: `1.5px solid ${COLOR_BORDER}`, borderRadius: 10,
-                  padding: '10px 12px', fontSize: 14, fontFamily: sg, color: COLOR_DARK,
-                  outline: 'none', boxSizing: 'border-box',
-                }}
-              />
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) cancelForm(); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}
+        >
+          <div style={{ background: 'var(--t-surface)', borderRadius: 20, padding: '24px 28px', width: 440, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 20, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--t-text-1)' }}>
+                {editing ? `Editar: ${editing.name}` : 'Nueva zona'}
+              </h3>
+              <button onClick={cancelForm} style={{ width: 32, height: 32, borderRadius: 999, border: 'none', background: 'var(--t-surface-2)', cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'var(--t-text-3)', fontSize: 16 }}>✕</button>
             </div>
 
-            {formError && (
-              <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{formError}</p>
-            )}
+            {/* Fields */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: 'var(--t-text-3)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Nombre del sector / barrio
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Ej: Centro, Laureles, Envigado..."
+                  style={{ width: '100%', border: '1.5px solid var(--t-input-border)', background: 'var(--t-input-bg)', borderRadius: 10, padding: '10px 12px', fontSize: 14, fontFamily: sg, color: 'var(--t-text-1)', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontFamily: sm, fontSize: 10, letterSpacing: '.06em', color: 'var(--t-text-3)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Precio del domicilio ($)
+                </label>
+                <input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+                  placeholder="Ej: 5000"
+                  min="0"
+                  style={{ width: '100%', border: '1.5px solid var(--t-input-border)', background: 'var(--t-input-bg)', borderRadius: 10, padding: '10px 12px', fontSize: 14, fontFamily: sg, color: 'var(--t-text-1)', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              {formError && <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{formError}</p>}
+            </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <button
-                onClick={cancelForm}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: 10,
-                  border: `1.5px solid ${COLOR_BORDER}`, background: '#fff',
-                  fontFamily: sg, fontWeight: 600, fontSize: 14, color: COLOR_MUTED,
-                  cursor: 'pointer',
-                }}
-              >
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={cancelForm} style={{ flex: 1, padding: '10px', borderRadius: 999, border: '1.5px solid var(--t-border)', background: 'var(--t-surface)', fontFamily: sg, fontWeight: 600, fontSize: 14, color: 'var(--t-text-3)', cursor: 'pointer' }}>
                 Cancelar
               </button>
-              <button
-                onClick={handleSave}
-                disabled={isPending}
-                style={{
-                  flex: 2, padding: '10px', borderRadius: 10, border: 'none',
-                  background: COLOR_PRIMARY, color: '#fff',
-                  fontFamily: sg, fontWeight: 700, fontSize: 14,
-                  cursor: isPending ? 'default' : 'pointer',
-                  opacity: isPending ? 0.7 : 1,
-                }}
-              >
-                {isPending ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Agregar zona')}
+              <button onClick={handleSave} disabled={isPending} style={{ flex: 2, padding: '10px', borderRadius: 999, border: 'none', background: '#FF6A1A', color: '#fff', fontFamily: sg, fontWeight: 700, fontSize: 14, cursor: isPending ? 'default' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
+                {isPending ? 'Guardando...' : editing ? 'Guardar cambios' : 'Agregar zona'}
               </button>
             </div>
           </div>
-        </section>
+        </div>
       )}
 
       {/* Lista de zonas */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={COLOR_MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--t-text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8zM5.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM18.5 21a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
           </svg>
-          <span style={{ fontFamily: sm, fontSize: 10, letterSpacing: '.08em', color: COLOR_MUTED, textTransform: 'uppercase' }}>
+          <span style={{ fontFamily: sm, fontSize: 10, letterSpacing: '.08em', color: 'var(--t-text-3)', textTransform: 'uppercase' }}>
             Zonas configuradas ({zones.length})
           </span>
         </div>
 
         {zones.length === 0 ? (
           <div style={{
-            border: `2px dashed ${COLOR_BORDER}`, borderRadius: 16,
+            border: '2px dashed var(--t-border)', borderRadius: 16,
             padding: '40px 20px', textAlign: 'center',
-            background: COLOR_BG,
+            background: 'var(--t-surface-2)',
           }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>🗺️</div>
-            <p style={{ fontFamily: sg, fontWeight: 700, fontSize: 15, color: COLOR_DARK, margin: '0 0 6px' }}>
+            <p style={{ fontFamily: sg, fontWeight: 700, fontSize: 15, color: 'var(--t-text-1)', margin: '0 0 6px' }}>
               Todavía no hay zonas configuradas
             </p>
-            <p style={{ fontFamily: sg, fontSize: 13, color: COLOR_MUTED, margin: '0 0 16px' }}>
-              Agregá barrios o sectores con su precio de envío correspondiente
+            <p style={{ fontFamily: sg, fontSize: 13, color: 'var(--t-text-3)', margin: '0 0 16px' }}>
+              Agrega barrios o sectores con su precio de envío correspondiente
             </p>
+            {canCreate && (
             <button
               onClick={openAdd}
               style={{
-                fontFamily: sg, fontWeight: 700, fontSize: 13, color: COLOR_PRIMARY,
-                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                fontFamily: sg, fontWeight: 700, fontSize: 13, color: '#FF6A1A',
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0, borderRadius: 999,
               }}
             >
               + Agregar primera zona
             </button>
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -277,9 +268,9 @@ export function DeliveryZonesManager() {
               <ZoneRow
                 key={zone.id}
                 zone={zone}
-                onEdit={openEdit}
-                onToggleActive={handleToggleActive}
-                onDelete={handleDelete}
+                onEdit={canUpdate ? openEdit : undefined}
+                onToggleActive={canUpdate ? handleToggleActive : undefined}
+                onDelete={can('delivery_zones.delete') ? handleDelete : undefined}
                 isToggling={togglingId === zone.id}
                 isDeleting={deletingId === zone.id}
               />
@@ -293,32 +284,32 @@ export function DeliveryZonesManager() {
 
 interface ZoneRowProps {
   zone: DeliveryZone;
-  onEdit: (zone: DeliveryZone) => void;
-  onToggleActive: (zone: DeliveryZone) => void;
-  onDelete: (zone: DeliveryZone) => void;
+  onEdit?: (zone: DeliveryZone) => void;
+  onToggleActive?: (zone: DeliveryZone) => void;
+  onDelete?: (zone: DeliveryZone) => void;
   isToggling?: boolean;
   isDeleting?: boolean;
 }
 
 function ZoneRow({ zone, onEdit, onToggleActive, onDelete, isToggling, isDeleting }: ZoneRowProps) {
-  const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-  const sm = "var(--font-space-mono, monospace)";
+  const sg = "var(--font-sans, sans-serif)";
+  const sm = "var(--font-mono, monospace)";
 
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
-      background: '#fff', border: `1px solid #EFE7DF`,
+      background: 'var(--t-surface)', border: '1px solid var(--t-border-2)',
       borderRadius: 14, padding: '12px 16px',
       boxShadow: '0 1px 4px rgba(0,0,0,.04)',
     }}>
       {/* Sort order */}
-      <span style={{ fontFamily: sm, fontSize: 11, color: '#9a8f86', minWidth: 18, textAlign: 'center' }}>
+      <span style={{ fontFamily: sm, fontSize: 11, color: 'var(--t-text-3)', minWidth: 18, textAlign: 'center' }}>
         {zone.sortOrder}
       </span>
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: sg, fontWeight: 700, fontSize: 14, color: '#1B1512' }}>
+        <div style={{ fontFamily: sg, fontWeight: 700, fontSize: 14, color: 'var(--t-text-1)' }}>
           {zone.name}
         </div>
         <div style={{ fontFamily: sg, fontWeight: 800, fontSize: 13, color: '#FF6A1A', marginTop: 1 }}>
@@ -330,23 +321,23 @@ function ZoneRow({ zone, onEdit, onToggleActive, onDelete, isToggling, isDeletin
       <span style={{
         padding: '4px 10px', borderRadius: 999,
         fontFamily: sm, fontSize: 10, fontWeight: 700, letterSpacing: '.04em',
-        background: zone.isActive ? '#d1fae5' : '#f3f4f6',
-        color: zone.isActive ? '#059669' : '#6b7280',
+        background: zone.isActive ? '#d1fae5' : 'var(--t-surface-2)',
+        color: zone.isActive ? '#059669' : 'var(--t-text-3)',
       }}>
         {zone.isActive ? 'Activa' : 'Inactiva'}
       </span>
 
       {/* Acciones */}
       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-        {/* Toggle activo */}
+        {onToggleActive && (
         <button
           onClick={() => onToggleActive(zone)}
           disabled={isToggling}
           title={zone.isActive ? 'Desactivar' : 'Activar'}
           style={{
-            width: 32, height: 32, borderRadius: 8, border: 'none', background: 'none',
+            width: 32, height: 32, borderRadius: 999, border: 'none', background: 'none',
             cursor: isToggling ? 'default' : 'pointer', display: 'grid', placeItems: 'center',
-            color: '#9a8f86', opacity: isToggling ? 0.5 : 1,
+            color: 'var(--t-text-3)', opacity: isToggling ? 0.5 : 1,
           }}
         >
           {zone.isActive ? (
@@ -361,14 +352,15 @@ function ZoneRow({ zone, onEdit, onToggleActive, onDelete, isToggling, isDeletin
             </svg>
           )}
         </button>
+        )}
 
-        {/* Editar */}
+        {onEdit && (
         <button
           onClick={() => onEdit(zone)}
           title="Editar"
           style={{
-            width: 32, height: 32, borderRadius: 8, border: 'none', background: 'none',
-            cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#9a8f86',
+            width: 32, height: 32, borderRadius: 999, border: 'none', background: 'none',
+            cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'var(--t-text-3)',
           }}
         >
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -376,16 +368,17 @@ function ZoneRow({ zone, onEdit, onToggleActive, onDelete, isToggling, isDeletin
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
+        )}
 
-        {/* Eliminar */}
+        {onDelete && (
         <button
           onClick={() => onDelete(zone)}
           disabled={isDeleting}
           title="Eliminar"
           style={{
-            width: 32, height: 32, borderRadius: 8, border: 'none', background: 'none',
+            width: 32, height: 32, borderRadius: 999, border: 'none', background: 'none',
             cursor: isDeleting ? 'default' : 'pointer', display: 'grid', placeItems: 'center',
-            color: '#9a8f86', opacity: isDeleting ? 0.5 : 1,
+            color: 'var(--t-text-3)', opacity: isDeleting ? 0.5 : 1,
           }}
         >
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -393,6 +386,7 @@ function ZoneRow({ zone, onEdit, onToggleActive, onDelete, isToggling, isDeletin
             <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
           </svg>
         </button>
+        )}
       </div>
     </div>
   );

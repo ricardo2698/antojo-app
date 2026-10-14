@@ -1,18 +1,18 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useAuth } from '@/features/auth';
 import { useRestaurant } from '@/features/restaurants/hooks/useRestaurants';
 import { ROUTES } from '@/constants/routes';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
 const MODULES = [
   {
     href: ROUTES.dashboard.pedidos,
     label: 'Pedidos',
-    desc: 'Gestioná órdenes en tiempo real',
+    desc: 'Gestiona órdenes en tiempo real',
     iconBg: 'linear-gradient(135deg, #FF8A2B, #EA3B2E)',
     iconShadow: 'rgba(234,59,46,.5)',
     icon: (
@@ -22,8 +22,8 @@ const MODULES = [
     ),
   },
   {
-    href: ROUTES.dashboard.menu,
-    label: 'Menú',
+    href: ROUTES.dashboard.productos,
+    label: 'Productos',
     desc: 'Productos, categorías y adicionales',
     iconBg: 'linear-gradient(135deg, #FBB03B, #F59211)',
     iconShadow: 'rgba(245,146,17,.5)',
@@ -48,7 +48,7 @@ const MODULES = [
   {
     href: ROUTES.dashboard.estados,
     label: 'Estados de pedidos',
-    desc: 'Configurá el flujo de tus pedidos',
+    desc: 'Configura el flujo de tus pedidos',
     iconBg: 'linear-gradient(135deg, #8a7f76, #5a5048)',
     iconShadow: 'rgba(90,80,72,.5)',
     icon: (
@@ -112,15 +112,15 @@ export default function DashboardHomePage() {
       </div>
 
       {/* Gestión */}
-      <div style={{ fontWeight: 600, fontSize: 15, color: '#1B1512', marginBottom: 14 }}>Gestión</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--t-text-1)', marginBottom: 14 }}>Gestión</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
 
         {MODULES.map(({ href, label, desc, iconBg, iconShadow, icon }) => (
           <Link
             key={href}
             href={href}
             style={{
-              background: '#fff', border: '1px solid #EFE7DF', borderRadius: 16,
+              background: 'var(--t-surface)', border: '1px solid var(--t-border-2)', borderRadius: 16,
               padding: 22, textDecoration: 'none', display: 'block',
               transition: 'transform .18s, box-shadow .18s',
             }}
@@ -142,8 +142,8 @@ export default function DashboardHomePage() {
             >
               {icon}
             </div>
-            <div style={{ fontWeight: 700, fontSize: 17, color: '#1B1512', marginBottom: 4 }}>{label}</div>
-            <p style={{ fontSize: 13, color: '#8a7f76', margin: 0 }}>{desc}</p>
+            <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--t-text-1)', marginBottom: 4 }}>{label}</div>
+            <p style={{ fontSize: 13, color: 'var(--t-text-3)', margin: 0 }}>{desc}</p>
           </Link>
         ))}
 

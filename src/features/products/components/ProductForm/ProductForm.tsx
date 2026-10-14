@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
@@ -12,6 +13,7 @@ import { ROUTES } from '@/constants/routes';
 
 import { useProductForm } from '../../hooks/useProductForm';
 import { useCreateProduct, useUpdateProduct } from '../../hooks/useProductMutations';
+import { useToastStore } from '@/store/toast.store';
 import type { ProductFormProps } from './ProductForm.types';
 
 export function ProductForm({
@@ -37,6 +39,7 @@ export function ProductForm({
   const createMutation = useCreateProduct(restaurantId);
   const updateMutation = useUpdateProduct(restaurantId);
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const { showToast } = useToastStore();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,8 +47,10 @@ export function ProductForm({
 
     if (isEditing && product) {
       await updateMutation.mutateAsync({ id: product.id, data: toUpdateData() });
+      showToast('Producto actualizado');
     } else {
       await createMutation.mutateAsync(toCreateData());
+      showToast('Producto creado');
     }
     onSuccess();
   }
@@ -64,8 +69,9 @@ export function ProductForm({
             onChange={(v) => handleChange('categoryId', v)}
             disabled={isPending}
             error={errors.categoryId}
-            placeholder="Seleccioná una categoría"
+            placeholder="Selecciona una categoría"
             options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+            compact
           />
 
           <Input
@@ -121,6 +127,7 @@ export function ProductForm({
             value={data.tag ?? ''}
             onChange={(v) => handleChange('tag', v)}
             disabled={isPending}
+            compact
             placeholder="Sin tag especial"
             options={[
               { value: '',                        label: 'Sin tag especial' },
@@ -142,14 +149,15 @@ export function ProductForm({
           disabled={isPending}
           aspectRatio="wide"
           objectFit="contain"
+          cropEnabled
         />
 
         {/* Adicionales */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Adicionales</h3>
+            <h3 className="text-sm font-semibold text-[var(--t-text-2)]">Adicionales</h3>
             <Link
-              href={ROUTES.dashboard.menu}
+              href={ROUTES.dashboard.adicionales}
               className="text-xs font-medium text-orange-600 hover:text-orange-700"
               tabIndex={-1}
             >
@@ -158,9 +166,9 @@ export function ProductForm({
           </div>
 
           {adicionales.length === 0 ? (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-[var(--t-text-4)]">
               No hay adicionales creados.{' '}
-              <Link href={ROUTES.dashboard.menu} className="font-medium text-orange-600 hover:underline">
+              <Link href={ROUTES.dashboard.adicionales} className="font-medium text-orange-600 hover:underline">
                 Crear adicionales →
               </Link>
             </p>
@@ -171,19 +179,18 @@ export function ProductForm({
                 return (
                   <label
                     key={a.id}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 px-3 py-2.5 transition-colors ${
-                      checked ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
-                    } ${!a.isActive ? 'opacity-50' : ''}`}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 px-3 py-2.5 transition-colors ${!a.isActive ? 'opacity-50' : ''}`}
+                    style={checked
+                      ? { borderColor: '#fb923c', backgroundColor: 'rgba(249,115,22,0.08)' }
+                      : { borderColor: 'var(--t-border)', backgroundColor: 'transparent' }
+                    }
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={checked}
                       onChange={() => toggleAdicionalId(a.id)}
                       disabled={isPending || !a.isActive}
-                      className="h-4 w-4 rounded flex-shrink-0"
-                      style={{ accentColor: '#f97316' }}
                     />
-                    <span className="flex-1 text-sm font-medium text-gray-800">{a.name}</span>
+                    <span className="flex-1 text-sm font-medium text-[var(--t-text-1)]">{a.name}</span>
                     <span className="text-xs font-bold text-orange-500 flex-shrink-0">
                       +{formatCurrency(a.price)}
                     </span>
@@ -197,24 +204,20 @@ export function ProductForm({
         {/* Switches de estado */}
         <div className="flex gap-6">
           <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={data.isActive}
               onChange={(e) => handleChange('isActive', e.target.checked)}
-              className="h-4 w-4 rounded accent-orange-500"
               disabled={isPending}
             />
-            <span className="text-sm font-medium text-gray-700">Activo en el menú</span>
+            <span className="text-sm font-medium text-[var(--t-text-2)]">Activo en el menú</span>
           </label>
           <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={data.isAvailable}
               onChange={(e) => handleChange('isAvailable', e.target.checked)}
-              className="h-4 w-4 rounded accent-orange-500"
               disabled={isPending}
             />
-            <span className="text-sm font-medium text-gray-700">Disponible hoy</span>
+            <span className="text-sm font-medium text-[var(--t-text-2)]">Disponible hoy</span>
           </label>
         </div>
 
@@ -223,7 +226,7 @@ export function ProductForm({
         )}
       </div>
 
-      <div className="flex gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+      <div className="flex gap-3 border-t border-[var(--t-border)] px-6 py-4">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={isPending} className="flex-1">
           Cancelar
         </Button>

@@ -1,3 +1,9 @@
+export interface DayHoursForm {
+  on: boolean;
+  open: string;  // "09:00"
+  close: string; // "19:00"
+}
+
 export interface RestaurantFormData {
   name: string;
   slug: string;
@@ -11,21 +17,31 @@ export interface RestaurantFormData {
   accentColor: string;
   bgColor: string;
   isActive: boolean;
+  // Categorías (IDs de restaurantCategories — 1 a 3)
+  categoryIds: string[];
   // Ubicación
   address: string;
+  department: string;
   city: string;
   mapUrl: string;
   mapEmbed: string;
   // Redes sociales
   instagram: string;
   facebook: string;
+  tiktok: string;
+  twitter: string;
   // Formato del menú
   menuLayout: 'cards' | 'list';
   // Modo de domicilios
   deliveryMode: 'manual' | 'zones';
+  // Horario de atención — índice 0=domingo, 1=lunes, ..., 6=sábado
+  openingHours: DayHoursForm[];
+  allowScheduledWhenClosed: boolean;
+  // Plan asignado (solo lo edita el super admin)
+  planId: string;
+  subscriptionStartDate: string; // YYYY-MM-DD para el input de fecha
   // Solo en creación
   adminName: string;
   adminEmail: string;
   adminPassword: string;
 }
-

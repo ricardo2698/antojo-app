@@ -1,41 +1,27 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '@/constants/routes';
+import { firstAllowedRoute } from '@/lib/permissions/permissions';
 import { AppLoader } from '@/components/ui/AppLoader';
+import { Logo } from '@/components/ui/Logo';
 
-const sg = "var(--font-space-grotesk, 'Inter', sans-serif)";
-const sm = "var(--font-space-mono, monospace)";
+const sg = "var(--font-sans, sans-serif)";
+const sm = "var(--font-mono, monospace)";
 
-function AntojoBiteLogo({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" className={className}>
-      <defs>
-        <linearGradient id="bite-g" x1="102" y1="102" x2="922" y2="922" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#FFB02E" />
-          <stop offset="0.55" stopColor="#FF6A1A" />
-          <stop offset="1" stopColor="#EA3B2E" />
-        </linearGradient>
-        <mask id="bite-m">
-          <rect width="1024" height="1024" fill="#fff" />
-          <circle cx="819.2" cy="215" r="307.2" fill="#000" />
-        </mask>
-      </defs>
-      <circle cx="512" cy="512" r="512" fill="url(#bite-g)" mask="url(#bite-m)" />
-    </svg>
-  );
-}
 
 export function LoginForm() {
-  const { signIn, user } = useAuth();
+  const { signIn, user, permissions } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +32,7 @@ export function LoginForm() {
       setShowLoader(true);
     } catch {
       setError('Correo o contraseña incorrectos');
+      setShowPassword(false);
     } finally {
       setLoading(false);
     }
@@ -53,7 +40,10 @@ export function LoginForm() {
 
   if (showLoader || user) {
     if (user) {
-      const dest = user.role === 'super_admin' ? ROUTES.admin.restaurants : ROUTES.dashboard.root;
+      // Destino según permisos: un empleado sin "Inicio" entra directo a su primera sección (ej. Pedidos)
+      const dest = user.role === 'super_admin'
+        ? ROUTES.admin.restaurants
+        : firstAllowedRoute(permissions) ?? ROUTES.dashboard.root;
       router.replace(dest);
     }
     return <AppLoader theme="dark" message="Preparando tu panel" />;
@@ -97,11 +87,8 @@ export function LoginForm() {
         />
 
         {/* Logo */}
-        <div className="relative flex items-center gap-3">
-          <AntojoBiteLogo className="h-9 w-9" />
-          <span style={{ fontWeight: 700, fontSize: 22, letterSpacing: '-0.02em', color: '#FBF6F1' }}>
-            Antojo<span style={{ color: '#FF6A1A' }}>.</span>
-          </span>
+        <div className="relative">
+          <Logo variant="dark" size={18} />
         </div>
 
         {/* Tagline + pills */}
@@ -160,27 +147,24 @@ export function LoginForm() {
       </div>
 
       {/* ── Panel derecho (formulario) ── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-14 py-12" style={{ background: '#FBF8F5' }}>
+      <div className="flex flex-1 flex-col items-center justify-center px-14 py-12" style={{ background: 'var(--t-auth-bg, var(--t-bg))' }}>
 
         {/* Logo mobile */}
-        <div className="mb-8 flex items-center gap-2 lg:hidden">
-          <AntojoBiteLogo className="h-8 w-8" />
-          <span style={{ fontWeight: 700, fontSize: 19, color: '#1B1512' }}>
-            Antojo<span style={{ color: '#FF6A1A' }}>.</span>
-          </span>
+        <div className="mb-8 lg:hidden">
+          <Logo variant="light" size={18} />
         </div>
 
         <div className="w-full max-w-[360px]">
-          <h1 style={{ fontWeight: 600, fontSize: 26, letterSpacing: '-0.02em', color: '#1B1512', margin: '0 0 6px' }}>
-            Ingresá a tu cuenta
+          <h1 style={{ fontWeight: 600, fontSize: 26, letterSpacing: '-0.02em', color: 'var(--t-text-1)', margin: '0 0 6px' }}>
+            Ingresa a tu cuenta
           </h1>
-          <p style={{ fontSize: 14, color: '#8a7f76', margin: '0 0 30px' }}>
-            Gestioná tu local desde donde estés.
+          <p style={{ fontSize: 14, color: 'var(--t-text-3)', margin: '0 0 30px' }}>
+            Gestiona tu local desde donde estés.
           </p>
 
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 18 }}>
-              <label style={{ fontWeight: 500, fontSize: 13, color: '#5a5048', display: 'block', marginBottom: 7 }}>
+              <label style={{ fontWeight: 500, fontSize: 13, color: 'var(--t-text-2)', display: 'block', marginBottom: 7 }}>
                 Correo electrónico
               </label>
               <input
@@ -189,29 +173,40 @@ export function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="hola@turestaurante.com"
-                style={{ fontFamily: sg, fontSize: 15, color: '#1B1512', width: '100%', border: '1.5px solid #E7DED6', background: '#fff', borderRadius: 12, padding: '14px 16px', outline: 'none', transition: 'border-color .15s, box-shadow .15s' }}
+                style={{ fontFamily: sg, fontSize: 15, color: 'var(--t-text-1)', width: '100%', border: '1.5px solid var(--t-input-border)', background: 'var(--t-input-bg)', borderRadius: 12, padding: '14px 16px', outline: 'none', transition: 'border-color .15s, box-shadow .15s' }}
                 onFocus={(e) => { e.target.style.borderColor = '#FF6A1A'; e.target.style.boxShadow = '0 0 0 4px rgba(255,106,26,.13)'; }}
-                onBlur={(e) => { e.target.style.borderColor = '#E7DED6'; e.target.style.boxShadow = 'none'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'var(--t-input-border)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
 
             <div style={{ marginBottom: 14 }}>
               <div className="flex items-baseline justify-between" style={{ marginBottom: 7 }}>
-                <label style={{ fontWeight: 500, fontSize: 13, color: '#5a5048' }}>Contraseña</label>
-                <button type="button" style={{ fontFamily: sg, fontSize: 12, color: '#FF6A1A', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <label style={{ fontWeight: 500, fontSize: 13, color: 'var(--t-text-2)' }}>Contraseña</label>
+                <button type="button" style={{ fontFamily: sg, fontSize: 12, color: '#FF6A1A', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0, borderRadius: 999 }}>
                   ¿La olvidaste?
                 </button>
               </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                style={{ fontFamily: sg, fontSize: 15, color: '#1B1512', width: '100%', border: '1.5px solid #E7DED6', background: '#fff', borderRadius: 12, padding: '14px 16px', outline: 'none', transition: 'border-color .15s, box-shadow .15s' }}
-                onFocus={(e) => { e.target.style.borderColor = '#FF6A1A'; e.target.style.boxShadow = '0 0 0 4px rgba(255,106,26,.13)'; }}
-                onBlur={(e) => { e.target.style.borderColor = '#E7DED6'; e.target.style.boxShadow = 'none'; }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  style={{ fontFamily: sg, fontSize: 15, color: 'var(--t-text-1)', width: '100%', border: '1.5px solid var(--t-input-border)', background: 'var(--t-input-bg)', borderRadius: 12, padding: '14px 46px 14px 16px', outline: 'none', transition: 'border-color .15s, box-shadow .15s' }}
+                  onFocus={(e) => { e.target.style.borderColor = '#FF6A1A'; e.target.style.boxShadow = '0 0 0 4px rgba(255,106,26,.13)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--t-input-border)'; e.target.style.boxShadow = 'none'; }}
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--t-text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, borderRadius: 8 }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer" style={{ marginBottom: 24 }}>
@@ -228,7 +223,7 @@ export function LoginForm() {
               disabled={loading}
               style={{
                 fontFamily: sg, fontWeight: 600, fontSize: 15, color: '#fff',
-                width: '100%', border: 0, borderRadius: 12, padding: 15, cursor: 'pointer',
+                width: '100%', border: 0, borderRadius: 999, padding: 15, cursor: 'pointer',
                 background: 'linear-gradient(135deg, #FF8A2B, #FF6A1A 55%, #EA3B2E)',
                 boxShadow: '0 8px 22px -6px rgba(234,59,46,.5)',
                 opacity: loading ? 0.6 : 1,
@@ -239,10 +234,10 @@ export function LoginForm() {
             </button>
           </form>
 
-          <p style={{ fontSize: 13, color: '#8a7f76', textAlign: 'center', margin: '26px 0 0' }}>
-            ¿No tenés cuenta?{' '}
-            <a href="#" style={{ color: '#FF6A1A', textDecoration: 'none', fontWeight: 600 }}>
-              Registrá tu local
+          <p style={{ fontSize: 13, color: 'var(--t-text-3)', textAlign: 'center', margin: '26px 0 0' }}>
+            ¿No tienes cuenta?{' '}
+            <a href="/registrar-local" style={{ color: '#FF6A1A', textDecoration: 'none', fontWeight: 600 }}>
+              Registra tu local
             </a>
           </p>
         </div>
